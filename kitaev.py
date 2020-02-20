@@ -369,7 +369,7 @@ tau = tau_initial
 
 refresh = 100
 
-file_name = 'kitaev.txt'
+file_name = 'kitaev.txt'  # output file
 
 energy = 1
 
@@ -403,7 +403,7 @@ lambdas_memory = copy.deepcopy(lambdas)
 eh = [constants.EHX, constants.EHY, constants.EHZ]
 u_gates = [x.reshape(d, d, d, d) for x in eh]
 
-j = 0
+j = 0  # ITE-step index
 
 while tau >= tau_final:
     for i in range(refresh):
