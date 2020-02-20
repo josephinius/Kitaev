@@ -306,6 +306,8 @@ xi = 1  # initial virtual (bond) dimension
 tensor_a = np.zeros((d, xi, xi, xi), dtype=complex)
 tensor_b = np.zeros((d, xi, xi, xi), dtype=complex)
 
+# Spin=1 Kitaev model polarized state:
+
 tensor_a[0][0][0][0] = - 1j * (2 + math.sqrt(3))
 tensor_a[1][0][0][0] = (1 - 1j) * (math.sqrt(2) + math.sqrt(6)) / 2
 tensor_a[2][0][0][0] = 1
