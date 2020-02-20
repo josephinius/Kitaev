@@ -275,7 +275,7 @@ spin = "1"  # implemented options so far: spin = "1", "1/2"
 k = 1.
 h = 0.E-14
 # print('field', h)
-D = 8
+D = 4
 
 ########################################################################################################################
 
@@ -378,8 +378,8 @@ energy = - 3 * energy / 2
 print('Energy of the initial state', energy, 'mag_x:', mag_x, 'num_of_iter', num_of_iter)
 """
 
-energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, 2)
-print('Flux of the initial state', energy, 'num_of_iter', num_of_iter)
+energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D)
+print('Energy of the initial state', 3 * energy / 2, 'num_of_iter', num_of_iter)
 
 with open(file_name, 'w') as f:
     f.write('# Kitaev S=%s model - ITE flow\n' % spin)
