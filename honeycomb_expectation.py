@@ -403,12 +403,10 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
         spin_rotation_operators = (constants.UZ, constants.UY, constants.UX)
         # spin_rotation_operators = (sz, sy, sx)
 
-    # tensors = (tensor_a, tensor_b)
+    tensors = (tensor_a, tensor_b)
 
-    """
     for i in range(6):  # impurity_6_ring initialization used for flux calculation
         double_impurity_6ring[i] = create_double_impurity(tensors[i % 2], lambdas, spin_rotation_operators[i % 3])
-    """
 
     # operator = (sx / 2, sy / 2, sz / 2)  # operators for Heisenberg model energy calculation
     # operator = operators[0] * 2  # operators for Kitaev model energy calculation
@@ -421,11 +419,9 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
     # double_impurity_6ring[4] = copy.deepcopy(double_tensor_a)  # E
     # double_impurity_6ring[5] = copy.deepcopy(double_tensor_b)  # F
 
-    """
-    double_impurity_6ring_helper = [None] * 6  # A, B, C, D, E, F - double impurity tensors - helpers
-    for i in range(6):
-        double_impurity_6ring_helper[i] = create_double_impurity(tensors[i % 2], lambdas, np.eye(d))
-    """
+    # double_impurity_6ring_helper = [None] * 6  # A, B, C, D, E, F - double impurity tensors - helpers
+    # for i in range(6):
+    #    double_impurity_6ring_helper[i] = create_double_impurity(tensors[i % 2], lambdas, np.eye(d))
 
     """
     dimp_ten_a = copy.deepcopy(double_impurity_tensors[0][0])
@@ -443,12 +439,14 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
     # norm = partition_function(*double_impurity_6ring_helper)
     # print('norm', norm)
 
-    # impurity_plaquette = create_plaquette(*double_impurity_6ring)  # {x xx y yy z zz}
     # measurement1 = partition_function(*double_impurity_6ring)
     # print('measurement1', measurement1)
+
+    # impurity_plaquette = create_plaquette(*double_impurity_6ring)  # {x xx y yy z zz}
     # measurement2 = np.einsum('x x y y z z->', impurity_plaquette)
     # print('measurement12', measurement1)
 
+    # return measurement1 / norm, 0
     # return measurement2 / norm, 0
 
     energy = 1

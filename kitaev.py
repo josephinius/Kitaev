@@ -265,7 +265,7 @@ spin = "1"  # implemented options so far: spin = "1", "1/2"
 k = 1.
 h = 0.E-14
 # print('field', h)
-D = 4
+D = 8
 
 ########################################################################################################################
 
@@ -383,6 +383,7 @@ print('Energy of the initial state', energy, 'mag_x:', mag_x, 'num_of_iter', num
 
 energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D)
 print('Energy of the initial state', 3 * energy / 2, 'num_of_iter', num_of_iter)
+# print('Flux of the initial state', energy, 'num_of_iter', num_of_iter)
 
 with open(file_name, 'w') as f:
     f.write('# Kitaev S=%s model - ITE flow\n' % spin)
@@ -403,7 +404,7 @@ lambdas_memory = copy.deepcopy(lambdas)
 # u_gates = np.array([construct_ite_operator(tau, hamiltonian).reshape(d, d, d, d) for hamiltonian in H])
 
 eh = (constants.EHX, constants.EHY, constants.EHZ)  # analytical form of evolution operators for spin=1 Kitaev model
-u_gates = (x.reshape(d, d, d, d) for x in eh)
+u_gates = [x.reshape(d, d, d, d) for x in eh]
 
 j = 0  # ITE-step index
 
