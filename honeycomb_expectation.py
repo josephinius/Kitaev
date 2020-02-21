@@ -1,11 +1,10 @@
 # import math
 import numpy as np
 from scipy import linalg
-# from sklearn.utils.extmath import randomized_svd
-
 import functools
-import copy
 import constants
+# import copy
+# from sklearn.utils.extmath import randomized_svd
 
 EPS = constants.EPS
 
