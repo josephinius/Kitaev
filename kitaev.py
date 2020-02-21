@@ -309,12 +309,6 @@ tensor_b[0][0][0][0] = - 1j * (2 + math.sqrt(3))
 tensor_b[1][0][0][0] = (1 - 1j) * (math.sqrt(2) + math.sqrt(6)) / 2
 tensor_b[2][0][0][0] = 1
 
-# tensor_a = np.zeros((d, xi, xi, xi))
-# tensor_b = np.zeros((d, xi, xi, xi))
-# tensor_a[2][0][0][0] = 1.
-# tensor_a[1][0][0][0] = 1.
-# tensor_b[2][0][0][0] = 1.
-
 """
 tensor_a = np.zeros((d, xi, xi, xi))
 tensor_b = np.zeros((d, xi, xi, xi))
@@ -407,8 +401,9 @@ lambdas_memory = copy.deepcopy(lambdas)
 # H = construct_hamiltonian(h, spin, k)
 
 # u_gates = np.array([construct_ite_operator(tau, hamiltonian).reshape(d, d, d, d) for hamiltonian in H])
-eh = [constants.EHX, constants.EHY, constants.EHZ]
-u_gates = [x.reshape(d, d, d, d) for x in eh]
+
+eh = (constants.EHX, constants.EHY, constants.EHZ)  # analytical form of evolution operators for spin=1 Kitaev model
+u_gates = (x.reshape(d, d, d, d) for x in eh)
 
 j = 0  # ITE-step index
 
