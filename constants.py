@@ -5,33 +5,6 @@ from scipy import linalg
 EPS = 1.E-32
 
 
-def exponentiation(alpha, s):
-    """
-    Returns exp(alpha * s), where alpha is (complex) number and s is matrix
-    """
-
-    w, v = linalg.eigh(s)
-    # w, v = linalg.eig(s)
-
-    d = s.shape[0]
-    assert np.allclose(s @ v - v @ np.diag(w), np.zeros((d, d)), rtol=1e-12, atol=1e-14)
-    assert np.allclose(s - v @ np.diag(w) @ linalg.inv(v), np.zeros((d, d)), rtol=1e-12, atol=1e-14)
-    assert np.allclose(v @ linalg.inv(v), np.eye(d), rtol=1e-12, atol=1e-14)
-
-    # w = np.where(np.abs(np.imag(w)) < 1.E-14, np.real(w), w)
-    # w = np.where(np.abs(np.real(w)) < 1.E-14, np.imag(w), w)
-    # print('w', w)
-
-    result = v @ np.exp(alpha * np.diag(w)) @ linalg.inv(v)
-    # return v @ np.exp(np.diag(alpha * w)) @ linalg.inv(v)
-
-    # result = np.where(np.abs(result) < 5.E-14, 0, result)
-    # result = np.where(np.abs(np.imag(result)) < 1.E-15, np.real(result), result)
-    # result = np.where(np.abs(np.real(result)) < 1.E-15, np.imag(result), result)
-
-    return result
-
-
 # Spin=1 operators: SX, SY, SZ
 
 SX = np.array([
@@ -52,12 +25,8 @@ SZ = np.array([
     [0, 0, -1.]
 ], dtype=complex)
 
-# print('SY', SY)
 
 # UX = linalg.expm(1j * math.pi * SX)
-# print('UX')
-# print(UX)
-
 # UX = exponentiation(1j * math.pi, SX)
 UX = np.array([
     [0, 0, -1.],
@@ -82,14 +51,6 @@ UZ = np.array([
     [0, 1., 0],
     [0, 0, -1.]
 ], dtype=complex)
-
-
-print('UX')
-print(UX)
-print('UY')
-print(UY)
-print('UZ')
-print(UZ)
 
 # ID3 = np.eye(3)
 
@@ -122,7 +83,7 @@ def get_spin_operators(spin):
 
 
 def create_loop_gas_operator(spin):
-    """Returns loop gas (LG) operator Q_LG for S=1 Kitaev model"""
+    """Returns loop gas (LG) operator Q_LG for spin=1/2 or spin=1 Kitaev model."""
 
     tau_tensor = np.zeros((2, 2, 2), dtype=complex)  # tau_tensor_{i j k}
     tau_tensor[0][0][0] = - 1j
@@ -258,3 +219,32 @@ EHZ[8][8] = math.exp(tau)
 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0
 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | e^τ)
 """
+
+
+def exponentiation(alpha, s):
+    """
+    Returns matrix exponentiation exp(alpha * s), where alpha is (complex) coefficient and s is (Hermitian) matrix.
+
+    Note: This method of matrix exponentiation is not numerically accurate and is used for debugging purposes only.
+    """
+
+    w, v = linalg.eigh(s)
+    # w, v = linalg.eig(s)
+
+    d = s.shape[0]
+    assert np.allclose(s @ v - v @ np.diag(w), np.zeros((d, d)), rtol=1e-12, atol=1e-14)
+    assert np.allclose(s - v @ np.diag(w) @ linalg.inv(v), np.zeros((d, d)), rtol=1e-12, atol=1e-14)
+    assert np.allclose(v @ linalg.inv(v), np.eye(d), rtol=1e-12, atol=1e-14)
+
+    # w = np.where(np.abs(np.imag(w)) < 1.E-14, np.real(w), w)
+    # w = np.where(np.abs(np.real(w)) < 1.E-14, np.imag(w), w)
+    # print('w', w)
+
+    result = v @ np.exp(alpha * np.diag(w)) @ linalg.inv(v)
+    # return v @ np.exp(np.diag(alpha * w)) @ linalg.inv(v)
+
+    # result = np.where(np.abs(result) < 5.E-14, 0, result)
+    # result = np.where(np.abs(np.imag(result)) < 1.E-15, np.real(result), result)
+    # result = np.where(np.abs(np.real(result)) < 1.E-15, np.imag(result), result)
+
+    return result
