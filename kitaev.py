@@ -12,7 +12,7 @@ import honeycomb_expectation
 EPS = constants.EPS
 
 
-def construct_kitaev_hamiltonian(h, spin, k=1):
+def construct_kitaev_hamiltonian(h, spin, k=1.):
     """Returns list of two-site Hamiltonian in [x, y, z]-direction for Kitaev model"""
     sx, sy, sz, one = constants.get_spin_operators(spin)
     hamiltonian = - k * np.array([np.kron(sx, sx), np.kron(sy, sy), np.kron(sz, sz)])
@@ -22,7 +22,7 @@ def construct_kitaev_hamiltonian(h, spin, k=1):
     return hamiltonian
 
 
-def construct_heisenberg_hamiltonian(h, spin, k=1):
+def construct_heisenberg_hamiltonian(h, spin, k=1.):
     """
     Returns list of two-site Hamiltonian in [x, y, z]-direction for Heisenberg model.
 
@@ -36,7 +36,7 @@ def construct_heisenberg_hamiltonian(h, spin, k=1):
     return np.array([hamiltonian, hamiltonian, hamiltonian]) / 2
 
 
-def construct_ising_hamiltonian(h, spin, k=1):
+def construct_ising_hamiltonian(h, spin, k=1.):
     """
     Returns list of two-site Hamiltonian in [x, y, z]-direction for transverse-field Ising model.
 
@@ -45,34 +45,19 @@ def construct_ising_hamiltonian(h, spin, k=1):
 
     """
     sx, sy, sz, one = constants.get_spin_operators(spin)
-    hamiltonian = - np.kron(sx, sx) - h * (np.kron(sz, one) + np.kron(one, sz)) / 2
+    hamiltonian = - k * np.kron(sx, sx) - h * (np.kron(sz, one) + np.kron(one, sz)) / 2
     return np.array([hamiltonian, hamiltonian, hamiltonian]) / 2
-
-
-# tensor_a = np.zeros((d, xi, xi, xi))
-# tensor_b = np.zeros((d, xi, xi, xi))
-# tensor_a[2][0][0][0] = 1.
-# tensor_a[1][0][0][0] = 1.
-# tensor_b[2][0][0][0] = 1.
-
-
-"""
-tensor_a = np.zeros((d, xi, xi, xi))
-tensor_b = np.zeros((d, xi, xi, xi))
-tensor_a[0][0][0][0] = 1.
-tensor_a[1][0][0][0] = 1.
-tensor_b[0][0][0][0] = 1.
-"""
 
 
 def construct_ite_operator(tau, hamiltonian):
     """Returns imaginary-time evolution (ITE) operator."""
-    return linalg.expm(-tau * hamiltonian)
-    # return constants.exponentiation(-tau, hamiltonian)
+    # return constants.exponentiation(- tau, hamiltonian)  # It seems that this is numerically less accurate.
+    return linalg.expm(- tau * hamiltonian)
 
 
-def apply_loop_gas_operator(tensor, Q_LG):
-    tensor = np.einsum('s t i j k, t l m n->s i l j m k n', Q_LG, tensor)
+def apply_loop_gas_operator(tensor, loop_gas_operator):
+    """Returns local tensor with loop gas operator attached to it."""
+    tensor = np.einsum('s t i j k, t l m n->s i l j m k n', loop_gas_operator, tensor)
     return tensor.reshape((d, 2, 2, 2))
 
 
@@ -90,13 +75,6 @@ def save_array(np_array, file_name):
     np.save(file_name, np_array)
 
 
-# "Simple Update" (SU)
-
-# tensor_a = np.ones((d, xi, xi, xi))  # TOTO: put this commented-out part to a better place in the code
-# tensor_b = np.ones((d, xi, xi, xi))
-# lambdas = [np.array([1,]), np.array([1,]), np.array([1,])]
-
-
 def tensor_rotate(ten):
     return np.transpose(ten, (0, 2, 3, 1))
 
@@ -106,23 +84,17 @@ def lambdas_rotate(lam):
 
 
 def pair_contraction(ten_a, ten_b, lambdas):
-    # print('in pair_contraction')
-    # print(lambdas)
 
-    a = ten_a
-    # a = a * np.sqrt(lambdas[0])[None, :, None, None]
-    a = a * lambdas[0][None, :, None, None]
-    a = a * lambdas[1][None, None, :, None]
-    a = a * lambdas[2][None, None, None, :]
+    # ten_a = ten_a * np.sqrt(lambdas[0])[None, :, None, None]
+    ten_a = ten_a * lambdas[0][None, :, None, None]
+    ten_a = ten_a * lambdas[1][None, None, :, None]
+    ten_a = ten_a * lambdas[2][None, None, None, :]
 
-    b = ten_b
-    # b = b * np.sqrt(lambdas[0])[None, :, None, None]
-    b = b * lambdas[1][None, None, :, None]
-    b = b * lambdas[2][None, None, None, :]
+    # ten_b = ten_b * np.sqrt(lambdas[0])[None, :, None, None]
+    ten_b = ten_b * lambdas[1][None, None, :, None]
+    ten_b = ten_b * lambdas[2][None, None, None, :]
 
-    pair = np.tensordot(a, b, axes=(1, 1))  # pair_{i y1 z1 j y2 z2} = a_{i x y1 z1} * b_{j x y2 z2}
-
-    # print('pair.shape', pair.shape)
+    pair = np.tensordot(ten_a, ten_b, axes=(1, 1))  # pair_{i y1 z1 j y2 z2} = ten_a{i x y1 z1} * ten_b{j x y2 z2}
 
     return pair
 
@@ -320,6 +292,20 @@ tensor_a[2][0][0][0] = 1
 tensor_b[0][0][0][0] = - 1j * (2 + math.sqrt(3))
 tensor_b[1][0][0][0] = (1 - 1j) * (math.sqrt(2) + math.sqrt(6)) / 2
 tensor_b[2][0][0][0] = 1
+
+# tensor_a = np.zeros((d, xi, xi, xi))
+# tensor_b = np.zeros((d, xi, xi, xi))
+# tensor_a[2][0][0][0] = 1.
+# tensor_a[1][0][0][0] = 1.
+# tensor_b[2][0][0][0] = 1.
+
+"""
+tensor_a = np.zeros((d, xi, xi, xi))
+tensor_b = np.zeros((d, xi, xi, xi))
+tensor_a[0][0][0][0] = 1.
+tensor_a[1][0][0][0] = 1.
+tensor_b[0][0][0][0] = 1.
+"""
 
 # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
 # print('polarization test', psi_zero_test(tensor_a, spin))
