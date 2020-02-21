@@ -119,24 +119,14 @@ def create_loop_gas_operator(spin):
 # TODO: test properties of Q_LG operator
 
 
-"""
-expm( tau
+tau = 0.01  # imaginary-time step used in the calculations
 
-KroneckerProduct[
+# Analytical form of the imaginary time evolution operators
 
-    (0 | 1 | 0
-     1 | 0 | 1
-     0 | 1 | 0),
+# u_gate_x = linalg.expm(- tau * two_site_hamiltonian_x)  # EHX
+# u_gate_x = linalg.expm(- tau * two_site_hamiltonian_y)  # EHY
+# u_gate_x = linalg.expm(- tau * two_site_hamiltonian_z)  # EHZ
 
-     (0 | 1 | 0
-     1 | 0 | 1
-     0 | 1 | 0)
-] / 2
-
-)
-"""
-
-tau = 0.01
 
 a = math.exp(-tau) * (6 * math.exp(tau) + math.exp(2 * tau) + 1.) / 8  # 1/8 e^(-τ) (6 e^τ + e^(2 τ) + 1)
 b = math.exp(-tau) * math.pow((math.exp(tau) - 1.), 2.) / 8  # 1/8 e^(-τ) (e^τ - 1)^2
