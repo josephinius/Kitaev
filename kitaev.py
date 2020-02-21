@@ -85,6 +85,20 @@ def lambdas_rotate(lam):
 
 def pair_contraction(ten_a, ten_b, lambdas):
 
+    """
+    Local tensors: ten_a, ten_b
+    Physical bonds (vertical legs): (i), (j)
+    Virtual bonds (horizontal legs): x, y1, z1, y2, z2
+
+           z1  (i)       y2
+            \  /         /
+             \/____x____/  ten_b
+      ten_a  /         /\
+            /         /  \
+           y1       (j)  z2
+
+    """
+
     # ten_a = ten_a * np.sqrt(lambdas[0])[None, :, None, None]
     ten_a = ten_a * lambdas[0][None, :, None, None]
     ten_a = ten_a * lambdas[1][None, None, :, None]
@@ -100,6 +114,7 @@ def pair_contraction(ten_a, ten_b, lambdas):
 
 
 def apply_gate(u_gate, pair):
+    """Returns a product of two-site gate and tensor pair."""
     # theta_{i j y1 z1 y2 z2} = u_gate_{i j k l} * pair_{k y1 z1 l y2 z2}
     theta = np.tensordot(u_gate, pair, axes=([2, 3], [0, 3]))
     return np.transpose(theta, (0, 2, 3, 1, 4, 5))  # theta_{i y1 z1 j y2 z2}
@@ -115,10 +130,9 @@ def tensor_pair_update(ten_a, ten_b, theta, lambdas):
     theta /= norm
 
     x, ss, y = linalg.svd(theta, lapack_driver='gesvd')
-    # x, ss, y = linalg.svd(theta, lapack_driver='gesdd')  # use 'gesvd' or 'gesdd'
+    # x, ss, y = linalg.svd(theta, lapack_driver='gesdd')
 
     # print('ss', ss)
-
     # norm = ss[0]
     # ss = ss / sum(ss)
 
@@ -126,11 +140,10 @@ def tensor_pair_update(ten_a, ten_b, theta, lambdas):
     dim_new = min(ss.shape[0], D)
 
     lambda_new = []
-    for s in ss[:dim_new]:
+    for i, s in enumerate(ss[:dim_new]):
         if s < EPS:
-            print('in the ITE procedure...')
-            print('s too small', s)
-            print('ss[:dim_new]', ss[:dim_new])
+            print(f'In the ITE procedure: truncating singular values due to small value at index {i}')
+            print('Singular values', ss[:dim_new])
             break
         lambda_new.append(s)
 
@@ -263,8 +276,11 @@ model = "Kitaev"
 
 if spin == "1/2":
     d = 2
-if spin == "1":
+elif spin == "1":
     d = 3
+else:
+    raise ValueError('spin should be either "1" or "1/2" (specified as string type)')
+
 
 if model == "Kitaev":
     construct_hamiltonian = construct_kitaev_hamiltonian
@@ -467,26 +483,8 @@ while abs(energy - energy_old) >= 1.E-10 and (j * refresh < 2000):
         f.write('%d\t\t%.15f\t%d\n' % ((j + 1) * refresh, np.real(energy), num_of_iter))
         f.close()
 
-    # TODO: SAVE DOUBLE TENSORS for the minimum energy
-    # save_array(tensor_a, file_name)  # incorrect - it is wrong because we need to save double tensors
-
     j += 1
 """
 
 # TODO: check only the convergence of lambdas (maybe TRG is too inaccurate)
-# TODO: check all normalizations (of tensors and singular values)
 # TODO: test the properties as described in the S=1 Kitaev paper
-
-"""
-
-          \        /
-           \      /
-            O----O
-           /      \
-       ---O        O---
-           \      /
-            O----O
-           /      \
-          /        \
-    
-"""
