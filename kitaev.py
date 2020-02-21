@@ -2,20 +2,18 @@ import math
 import copy
 import numpy as np
 from scipy import linalg
-
 import constants
 import honeycomb_expectation
-
 # import time
 # import pickle
-from tqdm import tqdm
+# from tqdm import tqdm
 
-# Kitaev model hamiltonian definition
 
 EPS = constants.EPS
 
 
 def construct_kitaev_hamiltonian(h, spin, k=1):
+    """Returns list of two-site Hamiltonian in [x, y, z]-direction for Kitaev model"""
     sx, sy, sz, one = constants.get_spin_operators(spin)
     hamiltonian = - k * np.array([np.kron(sx, sx), np.kron(sy, sy), np.kron(sz, sz)])
     hamiltonian -= h * (np.kron(sx, one) + np.kron(one, sx) +
@@ -23,26 +21,33 @@ def construct_kitaev_hamiltonian(h, spin, k=1):
                         np.kron(sz, one) + np.kron(one, sz)) / (3 * math.sqrt(3))
     return hamiltonian
 
-# H = - K * np.array([np.kron(ID, ID), np.kron(ID, ID), np.kron(ID, ID)])
-# + h * (np.kron(SZ, ID) + np.kron(ID, SZ)) / 3
-
-# Heisenberg model hamiltonian definition
-# heisenberg = np.kron(sx, sx) + np.kron(sy, sy) + np.kron(sz, sz)
-# + h * (np.kron(sz, np.eye(2)) + np.kron(np.eye(2), sz)) / 3
-# H = K * np.array([heisenberg, heisenberg, heisenberg]) / 2
-
 
 def construct_heisenberg_hamiltonian(h, spin, k=1):
+    """
+    Returns list of two-site Hamiltonian in [x, y, z]-direction for Heisenberg model.
+
+    Notice that the same Hamiltonian term is used in all three directions
+    in order to achieve compatibility with the rest of the code.
+
+    """
     sx, sy, sz, one = constants.get_spin_operators(spin)
     hamiltonian = k * (np.kron(sx, sx) + np.kron(sy, sy) + np.kron(sz, sz))
     hamiltonian += h * (np.kron(sz, one) + np.kron(one, sz)) / 3
     return np.array([hamiltonian, hamiltonian, hamiltonian]) / 2
 
 
-# Ising model hamiltonian definition
-# h = 2.8
-# ising = - np.kron(sx, sx) - h * (np.kron(sz, np.eye(2)) + np.kron(np.eye(2), sz)) / 2
-# H = np.array([ising, ising, ising])
+def construct_ising_hamiltonian(h, spin, k=1):
+    """
+    Returns list of two-site Hamiltonian in [x, y, z]-direction for transverse-field Ising model.
+
+    Notice that the same Hamiltonian term is used in all three directions
+    in order to achieve compatibility with the rest of the code.
+
+    """
+    sx, sy, sz, one = constants.get_spin_operators(spin)
+    hamiltonian = - np.kron(sx, sx) - h * (np.kron(sz, one) + np.kron(one, sz)) / 2
+    return np.array([hamiltonian, hamiltonian, hamiltonian]) / 2
+
 
 # tensor_a = np.zeros((d, xi, xi, xi))
 # tensor_b = np.zeros((d, xi, xi, xi))
