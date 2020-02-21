@@ -59,17 +59,29 @@ SZ = np.array([
 # print(UX)
 
 # UX = exponentiation(1j * math.pi, SX)
-UX = np.array([[0, 0, -1.], [0, -1., 0], [-1., 0, 0]], dtype=complex)
+UX = np.array([
+    [0, 0, -1.],
+    [0, -1., 0],
+    [-1., 0, 0]
+], dtype=complex)
 # print('UX')
 # print(UX)
 
 # UY = linalg.expm(1j * math.pi * SY)
 # UY = exponentiation(1j * math.pi, SY)
-UY = np.array([[0, 0, 1.], [0, -1., 0], [1., 0, 0]], dtype=complex)
+UY = np.array([
+    [0, 0, 1.],
+    [0, -1., 0],
+    [1., 0, 0]
+], dtype=complex)
 
 # UZ = linalg.expm(1j * math.pi * SZ)
 # UZ = exponentiation(1j * math.pi, SZ)
-UZ = np.array([[-1., 0, 0], [0, 1., 0], [0, 0, -1.]], dtype=complex)
+UZ = np.array([
+    [-1., 0, 0],
+    [0, 1., 0],
+    [0, 0, -1.]
+], dtype=complex)
 
 
 print('UX')
@@ -83,9 +95,20 @@ print(UZ)
 
 # Spin-1/2 operators: sx, sy, sz
 
-sx = np.array([[0, 1], [1, 0]], dtype=complex)
-sy = np.array([[0, -1j], [1j, 0]], dtype=complex)
-sz = np.array([[1, 0], [0, -1]], dtype=complex)
+sx = np.array([
+    [0, 1],
+    [1, 0]
+], dtype=complex)
+
+sy = np.array([
+    [0, -1j],
+    [1j, 0]
+], dtype=complex)
+
+sz = np.array([
+    [1, 0],
+    [0, -1]
+], dtype=complex)
 
 # id2 = np.eye(2)
 
@@ -133,6 +156,7 @@ def create_loop_gas_operator(spin):
     return Q_LG
 
 # TODO: test properties of Q_LG operator
+
 
 """
 expm( tau
