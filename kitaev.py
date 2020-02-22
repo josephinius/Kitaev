@@ -83,6 +83,18 @@ def lambdas_rotate(lam):
     return lam[1:] + [lam[0]]
 
 
+def equal_list_eps(list1, list2, eps=1.E-10):
+    for a, b in zip(list1, list2):
+        if abs(a - b) > eps:
+            return False
+    return True
+
+
+def array_difference(a1, a2):
+    l = min(len(a1), len(a2))
+    return np.sum(np.abs(a1[:l] - a2[:l]))
+
+
 def pair_contraction(ten_a, ten_b, lambdas):
 
     """
@@ -422,20 +434,6 @@ tau_initial = 1.E-4
 tau_final = 1.E-6
 # u_gates = [u_gate_x, u_gate_y, u_gate_z]
 # u_gates = np.array([construct_ITE_operator(tau, hamiltonian).reshape(d, d, d, d) for hamiltonian in H])
-
-"""
-def equal_list_eps(list1, list2, eps=1.E-10):
-    for a, b in zip(list1, list2):
-        if abs(a - b) > eps:
-            return False
-    return True
-"""
-
-
-def array_difference(a1, a2):
-    l = min(len(a1), len(a2))
-    return np.sum(np.abs(a1[:l] - a2[:l]))
-
 
 tau = tau_initial
 # tau = tau_final
