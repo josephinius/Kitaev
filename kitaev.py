@@ -6,7 +6,7 @@ import constants
 import honeycomb_expectation
 # import time
 # import pickle
-# from tqdm import tqdm
+from tqdm import tqdm
 
 
 EPS = constants.EPS
@@ -126,17 +126,15 @@ def tensor_pair_update(ten_a, ten_b, theta, lambdas):
     # print('db', db)
     theta = theta.reshape((d * da[2] * da[3], d * db[2] * db[3]))  # theta_{(i y1 z1), (j y2 z2)}
 
-    norm = np.max(np.abs(theta))
-    theta /= norm
+    # theta /= np.max(np.abs(theta))
 
     x, ss, y = linalg.svd(theta, lapack_driver='gesvd')
     # x, ss, y = linalg.svd(theta, lapack_driver='gesdd')
 
     # print('ss', ss)
     # norm = ss[0]
-    # ss = ss / sum(ss)
+    ss = ss / sum(ss)
 
-    # TODO: check the degeneracy - include all degenerate singular values
     dim_new = min(ss.shape[0], D)
 
     lambda_new = []
@@ -176,11 +174,20 @@ def tensor_pair_update(ten_a, ten_b, theta, lambdas):
     return x, y, lambda_new
 
 
-def update_step(ten_a, ten_b, lambdas, u_gates):
+def update_step(ten_a, ten_b, lambdas, u_gates=None):
+
+    # print('in update_step')
 
     for i in range(3):
+
+        # print(f'step {i}')
+
         pair = pair_contraction(ten_a, ten_b, lambdas)
-        theta = apply_gate(u_gates[i], pair)
+
+        if u_gates is not None:
+            theta = apply_gate(u_gates[i], pair)
+        else:
+            theta = pair
 
         ten_a, ten_b, lambdas[0] = tensor_pair_update(ten_a, ten_b, theta, lambdas)
 
@@ -195,12 +202,14 @@ def update_step(ten_a, ten_b, lambdas, u_gates):
 
         # print('lam rotated', lambdas)
 
-        """
-        norm_a = np.max(np.abs(ten_a))
-        norm_b = np.max(np.abs(ten_b))
-        ten_a /= norm_a
-        ten_b /= norm_b
-        """
+    # norm_a = np.max(np.abs(ten_a))
+    # norm_b = np.max(np.abs(ten_b))
+    # ten_a /= norm_a
+    # ten_b /= norm_b
+    # print('norms in update', norm_a, norm_b)
+    # lambdas[0] = lambdas[0] / sum(lambdas[0])
+    # lambdas[1] = lambdas[1] / sum(lambdas[1])
+    # lambdas[2] = lambdas[2] / sum(lambdas[2])
 
     return ten_a, ten_b, lambdas
 
@@ -256,6 +265,61 @@ def prepare_magnetized_state(tensor_a, tensor_b, spin):
     return tensor_a, tensor_b
 
 
+def kitaev_spin_one_half_ite_operator(tau):
+    # TODO: implement
+    pass
+
+
+def kitaev_spin_one_ite_operator(tau):
+    """Returns imaginary time evolution operators for spin=1 Kitaev model exponentiated analytically"""
+
+    # u_gate_x = linalg.expm(- tau * two_site_hamiltonian_x)
+    # u_gate_y = linalg.expm(- tau * two_site_hamiltonian_y)
+    # u_gate_z = linalg.expm(- tau * two_site_hamiltonian_z)
+
+    a = math.exp(-tau) * (6 * math.exp(tau) + math.exp(2 * tau) + 1.) / 8  # 1/8 e^(-τ) (6 e^τ + e^(2 τ) + 1)
+    b = math.exp(-tau) * math.pow((math.exp(tau) - 1.), 2.) / 8  # 1/8 e^(-τ) (e^τ - 1)^2
+    c = math.exp(-tau) * (math.exp(2 * tau) - 1.) / 4  # 1/4 e^(-τ) (e^(2 τ) - 1)
+    e = math.exp(-tau) * math.pow((math.exp(tau) + 1.), 2.) / 4  # 1/4 e^(-τ) (e^τ + 1)^2
+    f = math.exp(-tau) * (math.exp(2 * tau) + 1.) / 2  # 1/2 e^(-τ) (e^(2 τ) + 1)
+
+    u_gate_x = np.array(
+        [
+            [a, 0, b, 0, c, 0, b, 0, b],
+            [0, e, 0, c, 0, c, 0, 2 * b, 0],
+            [b, 0, a, 0, c, 0, b, 0, b],
+            [0, c, 0, e, 0, 2 * b, 0, c, 0],
+            [c, 0, c, 0, f, 0, c, 0, c],
+            [0, c, 0, 2 * b, 0, e, 0, c, 0],
+            [b, 0, b, 0, c, 0, a, 0, b],
+            [0, 2 * b, 0, c, 0, c, 0, e, 0],
+            [b, 0, b, 0, c, 0, b, 0, a],
+        ], dtype=complex
+    )
+
+    u_gate_y = np.array(
+        [
+            [ a,      0, -b,      0, -c,      0, -b,      0,  b],
+            [ 0,      e,  0,      c,  0,     -c,  0, -2 * b,  0],
+            [-b,      0,  a,      0,  c,      0,  b,      0, -b],
+            [ 0,      c,  0,      e,  0, -2 * b,  0,     -c,  0],
+            [-c,      0,  c,      0,  f,      0,  c,      0, -c],
+            [ 0,     -c,  0, -2 * b,  0,      e,  0,      c,  0],
+            [-b,      0,  b,      0,  c,      0,  a,      0, -b],
+            [ 0, -2 * b,  0,     -c,  0,      c,  0,      e,  0],
+            [ b,      0, -b,      0, -c,      0, -b,      0,  a],
+        ], dtype=complex
+    )
+
+    u_gate_z = np.eye(9, dtype=complex)
+    u_gate_z[0][0] = math.exp(tau)
+    u_gate_z[2][2] = math.exp(-tau)
+    u_gate_z[6][6] = math.exp(-tau)
+    u_gate_z[8][8] = math.exp(tau)
+
+    return u_gate_x, u_gate_y, u_gate_z
+
+
 ########################################################################################################################
 
 # TODO: option for Heisenberg model
@@ -265,7 +329,7 @@ spin = "1"  # implemented options so far: spin = "1", "1/2"
 k = 1.
 h = 0.E-14
 # print('field', h)
-D = 8
+D = 4
 
 ########################################################################################################################
 
@@ -317,8 +381,16 @@ tensor_a[1][0][0][0] = 1.
 tensor_b[0][0][0][0] = 1.
 """
 
+# norm_a = np.max(np.abs(tensor_a))
+# norm_b = np.max(np.abs(tensor_b))
+# tensor_a /= norm_a
+# tensor_b /= norm_b
+
 # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
 # print('polarization test', psi_zero_test(tensor_a, spin))
+
+# tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
+# tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
 
 lambdas = [np.array([1., ], dtype=complex), np.array([1., ], dtype=complex), np.array([1., ], dtype=complex)]
 
@@ -329,8 +401,8 @@ lambdas = [np.array([1., ], dtype=complex), np.array([1., ], dtype=complex), np.
 
 Q_LG = constants.create_loop_gas_operator(spin)
 
-print(Q_LG)
-print(tensor_a.shape)
+# print(Q_LG)
+# print(tensor_a.shape)
 
 # tensor_a = np.einsum('s t i j k, t l m n->s i l j m k n', constants.Q_LG, tensor_a)
 # tensor_a = tensor_a.reshape((d, 2, 2, 2))
@@ -343,11 +415,11 @@ tensor_b = apply_loop_gas_operator(tensor_b, Q_LG)
 # lambdas = [np.array([1., 1.]) / math.sqrt(2), np.array([1., 1.]) / math.sqrt(2), np.array([1., 1.]) / math.sqrt(2)]
 lambdas = [np.array([1., 1.], dtype=complex), np.array([1., 1.], dtype=complex), np.array([1., 1.], dtype=complex)]
 
-print(tensor_a.shape)
+# print(tensor_a.shape)
 
 # tau_initial = 4.E-3
-tau_initial = 1.E-2
-tau_final = 1.E-5
+tau_initial = 1.E-4
+tau_final = 1.E-6
 # u_gates = [u_gate_x, u_gate_y, u_gate_z]
 # u_gates = np.array([construct_ITE_operator(tau, hamiltonian).reshape(d, d, d, d) for hamiltonian in H])
 
@@ -368,7 +440,7 @@ def array_difference(a1, a2):
 tau = tau_initial
 # tau = tau_final
 
-refresh = 100
+refresh = 1_000
 
 file_name = 'kitaev.txt'  # output file
 
@@ -400,26 +472,40 @@ energy_old = -1
 lambdas_memory = copy.deepcopy(lambdas)
 
 # H = construct_hamiltonian(h, spin, k)
-
 # u_gates = np.array([construct_ite_operator(tau, hamiltonian).reshape(d, d, d, d) for hamiltonian in H])
-
-eh = (constants.EHX, constants.EHY, constants.EHZ)  # analytical form of evolution operators for spin=1 Kitaev model
-u_gates = [x.reshape(d, d, d, d) for x in eh]
+u_gates = [exp_ham.reshape(d, d, d, d) for exp_ham in kitaev_spin_one_ite_operator(tau)]
 
 j = 0  # ITE-step index
 
 while tau >= tau_final:
-    for i in range(refresh):
+
+    for i in tqdm(range(refresh)):
         tensor_a, tensor_b, lambdas = update_step(tensor_a, tensor_b, lambdas, u_gates)
+
     print('iter', (j + 1) * refresh)
     print('tau', tau)
     print(lambdas[0][:12])
     print(lambdas[1][:12])
     print(lambdas[2][:12])
 
+    """
+    tensor_a_copy = copy.deepcopy(tensor_a)
+    tensor_b_copy = copy.deepcopy(tensor_b)
+    lambdas_copy = copy.deepcopy(lambdas)
+
+    for i in range(10000):
+        tensor_a_copy, tensor_b_copy, lambdas_copy = update_step(tensor_a_copy, tensor_b_copy, lambdas_copy)
+
+    print(lambdas_copy[0][:12])
+    print(lambdas_copy[1][:12])
+    print(lambdas_copy[2][:12])
+    energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a_copy, tensor_b_copy, lambdas_copy, D)
+    """
+
     energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D)
+
     energy = 3 * energy / 2
-    # energy = - energy / 4
+    # energy = energy / 4
 
     # print('# ITE flow iter:', (j + 1) * refresh, 'energy:', energy, 'mag_x:', mag_x, 'num_of_iter:', num_of_iter)
     print('# ITE flow iter:', (j + 1) * refresh, 'energy:', energy, 'num_of_iter:', num_of_iter)
@@ -439,11 +525,12 @@ while tau >= tau_final:
     lambdas_memory = copy.deepcopy(lambdas)
     print(s1 + s2 + s3)
     # if s1 < 1.E-11 and s2 < 1.E-11 and s3 < 1.E-11:
-    if s1 < 1.E-15 and s2 < 1.E-15 and s3 < 1.E-15:
-        exit()
-        # tau /= 3
+    if s1 < 1.E-4 and s2 < 1.E-4 and s3 < 1.E-4:
+        print('lambdas converged; decreasing tau')
+        tau /= 3
         # tau /= 10
         # u_gates = np.array([construct_ite_operator(tau, hamiltonian).reshape(d, d, d, d) for hamiltonian in H])
+        u_gates = [exp_ham.reshape(d, d, d, d) for exp_ham in kitaev_spin_one_ite_operator(tau)]
     j += 1
 
 """

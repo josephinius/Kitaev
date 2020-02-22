@@ -3,7 +3,7 @@ import numpy as np
 from scipy import linalg
 import functools
 import constants
-# import copy
+import copy
 # from sklearn.utils.extmath import randomized_svd
 
 EPS = constants.EPS
@@ -346,6 +346,71 @@ def update_6ring(deformed_12ring, deformed_tensors):
     return [A, B, C, D, E, F]
 
 
+def energy_six_directions(double_tensor_a, double_tensor_b, double_impurity_tensors, num_of_iter):
+
+    ten_a = ten_c = ten_e = double_tensor_a
+    ten_b = ten_d = ten_f = double_tensor_b
+    ten_a = double_impurity_tensors[0][0]  # dimp_ten_a
+    ten_b = double_impurity_tensors[0][1]  # dimp_ten_b
+    ox1 = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+    # O = create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+
+    ten_a = ten_c = ten_e = double_tensor_a
+    ten_b = ten_d = ten_f = double_tensor_b
+    ten_d = double_impurity_tensors[0][1]
+    ten_e = double_impurity_tensors[0][0]
+    ox2 = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+    # O += create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+
+    ten_a = ten_c = ten_e = double_tensor_a
+    ten_b = ten_d = ten_f = double_tensor_b
+    ten_a = double_impurity_tensors[1][0]
+    ten_f = double_impurity_tensors[1][1]
+    oy1 = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+    # O += create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+
+    ten_a = ten_c = ten_e = double_tensor_a
+    ten_b = ten_d = ten_f = double_tensor_b
+    ten_c = double_impurity_tensors[1][0]
+    ten_d = double_impurity_tensors[1][1]
+    oy2 = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+    # O += create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+
+    ten_a = ten_c = ten_e = double_tensor_a
+    ten_b = ten_d = ten_f = double_tensor_b
+    ten_b = double_impurity_tensors[2][1]
+    ten_c = double_impurity_tensors[2][0]
+    oz1 = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+    # O += create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+
+    ten_a = ten_c = ten_e = double_tensor_a
+    ten_b = ten_d = ten_f = double_tensor_b
+    ten_e = double_impurity_tensors[2][0]
+    ten_f = double_impurity_tensors[2][1]
+    oz2 = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+    # O += create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+
+    # calculation of the norm
+    ten_a = ten_c = ten_e = double_tensor_a
+    ten_b = ten_d = ten_f = double_tensor_b
+    norm = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+
+    print('partition function', norm)
+
+    # o = px1 + px2 + py1 + py2 + pz1 + pz2
+    # O = np.einsum('x x y y z z->', O)
+
+    if num_of_iter % 1 == 0:
+        print('Expect. iter x1:', num_of_iter, 'energy:', - 3 * (ox1 / norm) / 2)
+        print('Expect. iter x2:', num_of_iter, 'energy:', - 3 * (ox2 / norm) / 2)
+        print('Expect. iter y1:', num_of_iter, 'energy:', - 3 * (oy1 / norm) / 2)
+        print('Expect. iter y2:', num_of_iter, 'energy:', - 3 * (oy2 / norm) / 2)
+        print('Expect. iter z1:', num_of_iter, 'energy:', - 3 * (oz1 / norm) / 2)
+        print('Expect. iter z2:', num_of_iter, 'energy:', - 3 * (oz2 / norm) / 2)
+
+    return [ox1, ox2, oy1, oy2, oz1, oz2] / norm
+
+
 def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
 
     """
@@ -362,6 +427,11 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
     if d == 3:
         spin = "1"
 
+    # norm_a = np.max(np.abs(tensor_a))
+    # norm_b = np.max(np.abs(tensor_b))
+    # tensor_a /= norm_a
+    # tensor_b /= norm_b
+
     double_tensor_a = create_double_tensor(tensor_a, lambdas)
     double_tensor_b = create_double_tensor(tensor_b, lambdas)
 
@@ -376,7 +446,6 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
     dimp_ten_b_init = create_double_impurity(tensor_b, lambdas)  # x-direction
     """
 
-    """
     double_impurity_tensors = []  # for calculating the energy
     for op in (constants.SX, constants.SY, constants.SZ):
         a = create_double_impurity(tensor_a, lambdas, op)
@@ -385,13 +454,11 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
         # tensor_b = tensor_rotate(tensor_b)
         # lambdas = lambdas_rotate(lambdas)
         double_impurity_tensors.append([a, b])
-        break
-    """
 
     # dimp_ten_a_mag = copy.deepcopy(double_impurity_tensors[0][0])
     # dimp_ten_b_mag = copy.deepcopy(double_tensor_b)
 
-    double_impurity_6ring = [None] * 6  # A, B, C, D, E, F - double impurity tensors
+    # double_impurity_6ring = [None] * 6  # A, B, C, D, E, F - double impurity tensors
 
     sx, sy, sz, _ = constants.get_spin_operators(spin)
 
@@ -405,8 +472,8 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
 
     tensors = (tensor_a, tensor_b)
 
-    for i in range(6):  # impurity_6_ring initialization used for flux calculation
-        double_impurity_6ring[i] = create_double_impurity(tensors[i % 2], lambdas, spin_rotation_operators[i % 3])
+    # for i in range(6):  # impurity_6_ring initialization used for flux calculation
+    #    double_impurity_6ring[i] = create_double_impurity(tensors[i % 2], lambdas, spin_rotation_operators[i % 3])
 
     # operator = (sx / 2, sy / 2, sz / 2)  # operators for Heisenberg model energy calculation
     # operator = operators[0] * 2  # operators for Kitaev model energy calculation
@@ -423,12 +490,10 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
     # for i in range(6):
     #    double_impurity_6ring_helper[i] = create_double_impurity(tensors[i % 2], lambdas, np.eye(d))
 
-    """
-    dimp_ten_a = copy.deepcopy(double_impurity_tensors[0][0])
-    create_double_impurity(tensor_a, lambdas, constants.SX)
-    dimp_ten_b = copy.deepcopy(double_impurity_tensors[0][1])
-    create_double_impurity(tensor_b, lambdas, constants.SX)
-    """
+    # dimp_ten_a = copy.deepcopy(double_impurity_tensors[0][0])
+    # create_double_impurity(tensor_a, lambdas, constants.SX)
+    # dimp_ten_b = copy.deepcopy(double_impurity_tensors[0][1])
+    # create_double_impurity(tensor_b, lambdas, constants.SX)
 
     operator = 1j * sx
     dimp_ten_a = create_double_impurity(tensor_a, lambdas, operator)
@@ -437,10 +502,23 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
     tensor_a, tensor_b, lambdas = None, None, None
 
     # norm = partition_function(*double_impurity_6ring_helper)
-    # print('norm', norm)
+
+    # calculation of the norm
+    ten_a = ten_c = ten_e = double_tensor_a
+    ten_b = ten_d = ten_f = double_tensor_b
+    norm = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+
+    ten_a = ten_c = ten_e = double_tensor_a
+    ten_b = ten_d = ten_f = double_tensor_b
+    ten_a = dimp_ten_a
+    ten_b = dimp_ten_b
+    measurement = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
 
     # measurement1 = partition_function(*double_impurity_6ring)
-    # print('measurement1', measurement1)
+    print('norm', norm)
+    # print('measurement', measurement)
+    # print('flux', measurement / norm)
+    print('energy', 1.5 * measurement / norm)
 
     # impurity_plaquette = create_plaquette(*double_impurity_6ring)  # {x xx y yy z zz}
     # measurement2 = np.einsum('x x y y z z->', impurity_plaquette)
@@ -453,18 +531,32 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
     energy_mem = -1
     num_of_iter = 0
 
+    ################################################################
+
+    energy_six_directions(double_tensor_a, double_tensor_b, double_impurity_tensors, num_of_iter)
+
+    # o = np.tensordot(dimp_ten_a, dimp_ten_b, axes=([0, 1, 2], [0, 1, 2]))
+    # o = np.tensordot(double_impurity_tensors[0][0], double_impurity_tensors[0][1], axes=([0, 1, 2], [0, 1, 2]))
+    # norm = np.tensordot(double_tensor_a, double_tensor_b, axes=([0, 1, 2], [0, 1, 2]))
+    # norm = partition_function(*double_impurity_6ring_helper)
+    # print('partition function', norm)
+
+    ################################################################
+
+    num_of_iter += 1
+
     # for _ in range(100):
-    while abs(energy - energy_mem) > 1.E-8:
+    while abs(energy - energy_mem) > 1.E-6:
 
         # print(double_tensor_a.shape)
         # print(double_tensor_b.shape)
         # print(dimp_ten_a[2].shape)
         # print(dimp_ten_b[2].shape)
-        # break
 
         deformed_tensors = create_deformed_tensors(double_tensor_a, double_tensor_b, dim_cut)
 
         ###########################################
+
         """
         deformed_12ring = create_deformed_12ring(double_impurity_6ring, double_tensor_a, double_tensor_b, dim_cut)
         double_impurity_6ring = update_6ring(deformed_12ring, deformed_tensors)
@@ -472,12 +564,14 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
         deformed_12ring_helper = create_deformed_12ring(double_impurity_6ring_helper, double_tensor_a, double_tensor_b, dim_cut)
         double_impurity_6ring_helper = update_6ring(deformed_12ring_helper, deformed_tensors)
         """
+
         ###########################################
+
         # impurity update is here
 
         # dimp_sx_a_mag, dimp_sx_b_mag, _ = deform_and_renorm_impurity(dimp_ten_a_mag, dimp_ten_b_mag, dim_cut)
 
-        # deformed_imp_tensors = create_deformed_tensors(*zip(*double_impurity_tensors), dim_cut)
+        deformed_imp_tensors = create_deformed_tensors(*zip(*double_impurity_tensors), dim_cut)
 
         # dimp_ten_a_mag = update_double_tensor(dimp_sx_a_mag, deformed_tensors[1][0], deformed_tensors[2][0])
         # dimp_ten_b_mag = update_double_tensor(dimp_sx_b_mag, deformed_tensors[1][1], deformed_tensors[2][1])
@@ -485,11 +579,10 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
         # dimp_sx_a, dimp_sx_b, _ = \
         # deform_and_renorm_impurity(double_impurity_tensors[0][0], double_impurity_tensors[0][1], dim_cut)
 
-        dimp_sx_a, dimp_sx_b, _ = deform_and_renorm_impurity(dimp_ten_a, dimp_ten_b, dim_cut)
-        dimp_ten_a = update_double_tensor(dimp_sx_a, deformed_tensors[1][0], deformed_tensors[2][0])
-        dimp_ten_b = update_double_tensor(dimp_sx_b, deformed_tensors[1][1], deformed_tensors[2][1])
+        # dimp_sx_a, dimp_sx_b, _ = deform_and_renorm_impurity(dimp_ten_a, dimp_ten_b, dim_cut)
+        # dimp_ten_a = update_double_tensor(dimp_sx_a, deformed_tensors[1][0], deformed_tensors[2][0])
+        # dimp_ten_b = update_double_tensor(dimp_sx_b, deformed_tensors[1][1], deformed_tensors[2][1])
 
-        """
         double_impurity_tensors[0][0] = \
             update_double_tensor(deformed_imp_tensors[0][0], deformed_tensors[1][0], deformed_tensors[2][0])
 
@@ -505,7 +598,6 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
             update_double_tensor(deformed_tensors[0][0], deformed_tensors[1][0], deformed_imp_tensors[2][0])
         double_impurity_tensors[2][1] = \
             update_double_tensor(deformed_tensors[0][1], deformed_tensors[1][1], deformed_imp_tensors[2][1])
-        """
 
         ###########################################
 
@@ -526,32 +618,31 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
 
         ###########################################
 
-        rot_y = rot_neg_z = lambda ten3: np.transpose(ten3, (1, 2, 0))  # rotate by 1
-        tensor_norms = (norm_a, norm_b)
+        # rot_y = rot_neg_z = lambda ten3: np.transpose(ten3, (1, 2, 0))  # rotate by 1
+        # tensor_norms = (norm_a, norm_b)
 
         """
         for position in range(6):
             double_impurity_6ring[position] /= tensor_norms[position % 2]
             double_impurity_6ring[position] = rot_y(double_impurity_6ring[position])
 
-            # for position in range(6):
             double_impurity_6ring_helper[position] /= tensor_norms[position % 2]
             double_impurity_6ring_helper[position] = rot_y(double_impurity_6ring_helper[position])
         """
 
         ###########################################
 
-        # double_impurity_tensors[0][0] /= norm_a
-        # double_impurity_tensors[0][1] /= norm_b
-        # double_impurity_tensors[1][0] /= norm_a
-        # double_impurity_tensors[1][1] /= norm_b
-        # double_impurity_tensors[2][0] /= norm_a
-        # double_impurity_tensors[2][1] /= norm_b
+        double_impurity_tensors[0][0] /= norm_a
+        double_impurity_tensors[0][1] /= norm_b
+        double_impurity_tensors[1][0] /= norm_a
+        double_impurity_tensors[1][1] /= norm_b
+        double_impurity_tensors[2][0] /= norm_a
+        double_impurity_tensors[2][1] /= norm_b
 
         ###########################################
 
-        dimp_ten_a /= norm_a
-        dimp_ten_b /= norm_b
+        # dimp_ten_a /= norm_a
+        # dimp_ten_b /= norm_b
 
         # dimp_ten_a_mag /= norm_a
         # dimp_ten_b_mag /= norm_b
@@ -564,80 +655,8 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
         # o = np.tensordot(double_impurity_tensors[0][0], double_impurity_tensors[0][1], axes=([0, 1, 2], [0, 1, 2]))
         # norm = np.tensordot(double_tensor_a, double_tensor_b, axes=([0, 1, 2], [0, 1, 2]))
 
-        ten_a = ten_c = ten_e = double_tensor_a
-        ten_b = ten_d = ten_f = double_tensor_b
-        ten_a = dimp_ten_a  # double_impurity_tensors[0][0]
-        ten_b = dimp_ten_b  # double_impurity_tensors[0][1]
-        ox1 = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
-        # O = create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
-
-        """
-        ten_a = ten_c = ten_e = double_tensor_a
-        ten_b = ten_d = ten_f = double_tensor_b
-        ten_d = double_impurity_tensors[0][1]
-        ten_e = double_impurity_tensors[0][0]
-        ox2 = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
-        # O += create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
-
-        ten_a = ten_c = ten_e = double_tensor_a
-        ten_b = ten_d = ten_f = double_tensor_b
-        ten_a = double_impurity_tensors[1][0]
-        ten_f = double_impurity_tensors[1][1]
-        oy1 = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
-        # O += create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
-
-        ten_a = ten_c = ten_e = double_tensor_a
-        ten_b = ten_d = ten_f = double_tensor_b
-        ten_c = double_impurity_tensors[1][0]
-        ten_d = double_impurity_tensors[1][1]
-        oy2 = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
-        # O += create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
-
-        ten_a = ten_c = ten_e = double_tensor_a
-        ten_b = ten_d = ten_f = double_tensor_b
-        ten_b = double_impurity_tensors[2][1]
-        ten_c = double_impurity_tensors[2][0]
-        oz1 = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
-        # O += create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
-
-        ten_a = ten_c = ten_e = double_tensor_a
-        ten_b = ten_d = ten_f = double_tensor_b
-        ten_e = double_impurity_tensors[2][0]
-        ten_f = double_impurity_tensors[2][1]
-        oz2 = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
-        # O += create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
-        """
-
-        # double_tensor_a = rot_y(double_tensor_a)  # TODO: has to be used in 6-ring method
-        # double_tensor_b = rot_y(double_tensor_b)  # TODO: has to be used in 6-ring method
-
-        # calculation of the norm
-        # ten_a = ten_c = ten_e = double_tensor_a
-        # ten_b = ten_d = ten_f = double_tensor_b
-        # norm = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
-
-        # norm = partition_function(*double_impurity_6ring_helper)
-        # print('partition function', norm)
-
-        ten_a = ten_c = ten_e = double_tensor_a
-        ten_b = ten_d = ten_f = double_tensor_b
-        norm = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
-
-        print('partition function', norm)
-
-        # o = px1 + px2 + py1 + py2 + pz1 + pz2
-        # O = np.einsum('x x y y z z->', O)
-
-        # print('in expectation value iterative calculation...')
-        # if num_of_iter % 1 == 0:
-        #    print('Expect. iter x1:', num_of_iter, 'energy:', - 3 * (ox1 / norm) / 2)
-        #    """
-        #    print('Expect. iter x2:', num_of_iter, 'energy:', - 3 * (ox2 / norm) / 2)
-        #    print('Expect. iter y1:', num_of_iter, 'energy:', - 3 * (oy1 / norm) / 2)
-        #    print('Expect. iter y2:', num_of_iter, 'energy:', - 3 * (oy2 / norm) / 2)
-        #    print('Expect. iter z1:', num_of_iter, 'energy:', - 3 * (oz1 / norm) / 2)
-        #    print('Expect. iter z2:', num_of_iter, 'energy:', - 3 * (oz2 / norm) / 2)
-        #    """
+        energy_list = energy_six_directions(double_tensor_a, double_tensor_b, double_impurity_tensors, num_of_iter)
+        ox1, ox2, oy1, oy2, oz1, oz2 = energy_list
 
         # print('Expect. iter:', num_of_iter, 'energy:', - (O / norm) / 4)
 
@@ -647,7 +666,8 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
 
         energy_mem = energy
         # energy = energy_6ring
-        energy = ox1 / norm
+        energy = ox1
+        # energy = (ox1 + ox2 + oy1 + oy2 + oz1 + oz2) / (6 * norm)
         # energy = O / norm
         print('energy', 3 * energy / 2)
 
