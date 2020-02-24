@@ -29,7 +29,6 @@ def create_double_tensor(ten, lambdas):
 
 
 def deform_and_renorm_double_tensor(dten_a, dten_b, dim_cut):
-    # 1) contraction
 
     """
        z1          y2
@@ -73,8 +72,8 @@ def deformation(pair, dim_cut):
 
     # 3) SVD
     print("SVD... (honeycomb expectation)")
-    x, ss, y = linalg.svd(pair, lapack_driver='gesdd')  # use 'gesvd' or 'gesdd'
-    # x, ss, y = linalg.svd(pair, lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
+    # x, ss, y = linalg.svd(pair, lapack_driver='gesdd')  # use 'gesvd' or 'gesdd'
+    x, ss, y = linalg.svd(pair, lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
     # x, ss, y = randomized_svd(pair, n_components=120, n_iter=5, random_state=None)
     print("SVD done")
     # print('ss', ss)
@@ -233,6 +232,30 @@ def partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f):
     return z
 
 
+def torus_partition_function():
+
+    """
+
+    Directions:
+        * x : -
+        * y : /
+        * z : \
+
+              z1      y1
+               \ A    /
+        z2      O----O B    y2
+         \   F /      \     /
+       C' O---O        O---O F'
+         /     \      / C   \
+        y1    E O----O       z1
+               /    D \
+              y2      z2
+
+    """
+
+    pass
+
+
 def create_double_impurity(ten, lambdas, operator):
 
     """
@@ -255,7 +278,6 @@ def create_double_impurity(ten, lambdas, operator):
     if isinstance(operator, tuple):
         # for Heisenberg model
         assert len(operator) == 3
-        exit()
         result = [None] * 3
         for i in range(3):
             ten_sigma = np.tensordot(operator[i], ten, axes=(1, 0))  # ten_sigma_{i x y z} = sigma_{i j} ten_{j x y z}
@@ -669,7 +691,7 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
         energy = ox1
         # energy = (ox1 + ox2 + oy1 + oy2 + oz1 + oz2) / (6 * norm)
         # energy = O / norm
-        print('energy', 3 * energy / 2)
+        print('energy', - 3 * energy / 2)
 
         # Magnetization calculation at position 0
         """

@@ -87,7 +87,7 @@ def create_loop_gas_operator(spin):
 
     tau_tensor = np.zeros((2, 2, 2), dtype=complex)  # tau_tensor_{i j k}
     # tau_tensor[0][0][0] = - 1j
-    tau_tensor[0][0][0] = 1
+    tau_tensor[0][0][0] = - 1
     tau_tensor[0][1][1] = tau_tensor[1][0][1] = tau_tensor[1][1][0] = 1
 
     sx, sy, sz, one = get_spin_operators(spin)
@@ -115,6 +115,7 @@ def create_loop_gas_operator(spin):
                 for s in range(d):
                     for sp in range(d):
                         Q_LG[s][sp][i][j][k] = tau_tensor[i][j][k] * temp[s][sp]
+
     return Q_LG
 
 
