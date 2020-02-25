@@ -465,6 +465,48 @@ def energy_six_directions(double_tensor_a, double_tensor_b, double_impurity_tens
     return [ox1, ox2, oy1, oy2, oz1, oz2] / norm
 
 
+def calculate_global_flux_horizontal(tensor_a, tensor_b, lambdas, double_tensor_a, double_tensor_b):
+    """Returns global flux in horizontal direction."""
+
+    ten_a = ten_c = ten_e = double_tensor_a
+    ten_b = ten_d = ten_f = double_tensor_b
+    ten_cp, ten_fp = double_tensor_a, double_tensor_b
+
+    norm = torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_cp, ten_fp)
+
+    ten_a = create_double_impurity(tensor_a, lambdas, constants.UZ)
+    ten_b = create_double_impurity(tensor_b, lambdas, constants.UZ)
+    ten_c = double_tensor_a
+    ten_d = double_tensor_b
+    ten_e = double_tensor_a
+    ten_f = create_double_impurity(tensor_b, lambdas, constants.UZ)
+    ten_cp = create_double_impurity(tensor_a, lambdas, constants.UZ)
+    ten_fp = double_tensor_b
+
+    return torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_cp, ten_fp) / norm
+
+
+def calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, double_tensor_a, double_tensor_b):
+    """Returns global flux in vertical direction"""
+
+    ten_a = ten_c = ten_e = double_tensor_a
+    ten_b = ten_d = ten_f = double_tensor_b
+    ten_cp, ten_fp = double_tensor_a, double_tensor_b
+
+    norm = torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_cp, ten_fp)
+
+    ten_a = create_double_impurity(tensor_a, lambdas, constants.UY)
+    ten_b = create_double_impurity(tensor_b, lambdas, constants.UY)
+    ten_c = create_double_impurity(tensor_a, lambdas, constants.UY)
+    ten_d = double_tensor_b
+    ten_e = double_tensor_a
+    ten_f = double_tensor_b
+    ten_cp = double_tensor_a
+    ten_fp = create_double_impurity(tensor_b, lambdas, constants.UY)
+
+    return torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_cp, ten_fp) / norm
+
+
 def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
 
     """
@@ -512,22 +554,22 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
     # dimp_ten_a_mag = copy.deepcopy(double_impurity_tensors[0][0])
     # dimp_ten_b_mag = copy.deepcopy(double_tensor_b)
 
-    # double_impurity_6ring = [None] * 6  # A, B, C, D, E, F - double impurity tensors
-
+    double_impurity_6ring = [None] * 6  # A, B, C, D, E, F - double impurity tensors
     sx, sy, sz, _ = constants.get_spin_operators(spin)
-
     spin_rotation_operators = None
-
     if spin == "1/2":
         spin_rotation_operators = (sz, sy, sx)
     if spin == "1":
         spin_rotation_operators = (constants.UZ, constants.UY, constants.UX)
         # spin_rotation_operators = (sz, sy, sx)
-
     tensors = (tensor_a, tensor_b)
+    for i in range(6):  # impurity_6_ring initialization used for flux calculation
+        double_impurity_6ring[i] = create_double_impurity(tensors[i % 2], lambdas, spin_rotation_operators[i % 3])
 
-    # for i in range(6):  # impurity_6_ring initialization used for flux calculation
-    #    double_impurity_6ring[i] = create_double_impurity(tensors[i % 2], lambdas, spin_rotation_operators[i % 3])
+    w_horizontal = calculate_global_flux_horizontal(tensor_a, tensor_b, lambdas, double_tensor_a, double_tensor_b)
+    print('global flux w_horizontal = ', w_horizontal)
+    w_vertical = calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, double_tensor_a, double_tensor_b)
+    print('global flux w_vertical = ', w_vertical)
 
     # operator = (sx / 2, sy / 2, sz / 2)  # operators for Heisenberg model energy calculation
     # operator = operators[0] * 2  # operators for Kitaev model energy calculation
@@ -580,6 +622,8 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
 
     # return measurement1 / norm, 0
     # return measurement2 / norm, 0
+
+    return measurement / norm, 0
 
     energy = 1
     energy_mem = -1

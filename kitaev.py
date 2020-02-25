@@ -497,7 +497,7 @@ print('Energy of the initial state', energy, 'mag_x:', mag_x, 'num_of_iter', num
 """
 
 energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D)
-print('Energy of the initial state', - 3 * energy / 2, 'num_of_iter', num_of_iter)
+print('Energy of the initial state', 3 * energy / 2, 'num_of_iter', num_of_iter)
 # print('Flux of the initial state', energy, 'num_of_iter', num_of_iter)
 
 with open(file_name, 'w') as f:
@@ -506,7 +506,7 @@ with open(file_name, 'w') as f:
     f.write('# Iter\t\tEnergy\t\t\tCoarse-grain steps\n')
 f = open(file_name, 'a')
 # f.write('%d\t\t%.15f\t%.15f\t%d\n' % (0, np.real(energy), np.real(mag_x), num_of_iter))
-f.write('%d\t\t%.15f\t%d\n' % (0, - 3 * np.real(energy) / 2, num_of_iter))
+f.write('%d\t\t%.15f\t%d\n' % (0, 3 * np.real(energy) / 2, num_of_iter))
 # f.write('%d\t\t%.15f\t%d\n' % (0, np.real(energy), num_of_iter))
 f.close()
 
@@ -548,7 +548,7 @@ while tau >= tau_final and (j * refresh < 10100):
     energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a_copy, tensor_b_copy, lambdas_copy, D)
     # energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D)
 
-    energy = - 3 * energy / 2
+    energy = 3 * energy / 2
     # energy = energy / 4
 
     # print('# ITE flow iter:', (j + 1) * refresh, 'energy:', energy, 'mag_x:', mag_x, 'num_of_iter:', num_of_iter)
