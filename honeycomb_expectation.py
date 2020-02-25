@@ -232,7 +232,7 @@ def partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f):
     return z
 
 
-def torus_partition_function():
+def torus_partition_function(A, B, C, D, E, F, Cp, Fp):
 
     """
 
@@ -253,7 +253,21 @@ def torus_partition_function():
 
     """
 
-    pass
+    # AF_{ix, z1, ax, mz} = A_{ix ny z1} * F_{ax, ny, mz}
+    AF = np.tensordot(A, F, axes=(1, 1))
+    # BCp_{ix, jz, ax, z2} = B_{ix, y1, jz} * Cp_{ax, y1, z2}
+    BCp = np.tensordot(B, Cp, axes=(1, 1))
+    # AFBCp_{z1, mz, jz, z2} = AF_{ix, z1, ax, mz} * BCp_{ix, jz, ax, z2}
+    AFBCp = np.tensordot(AF, BCp, axes=([0, 2], [0, 2]))
+    # EFp_{lx, mz, bx, z1} = E_{lx, y2, mz} * Fp_{bx, y2, z1}
+    EFp = np.tensordot(E, Fp, axes=(1, 1))
+    # CD_{bx, jz, lx, z2} = C_{bx, ky, jz} * D_{lx, ky, z2}
+    CD = np.tensordot(C, D, axes=(1, 1))
+    # EFpCD_{mz, z1, jz, z2} = EFp_{lx, mz, bx, z1} * CD_{bx, jz, lx, z2}
+    EFpCD = np.tensordot(EFp, CD, axes=([0, 2], [2, 0]))
+    # z = AFBCp_{z1, mz, jz, z2} * EFpCD_{mz, z1, jz, z2}
+    z = np.tensordot(AFBCp, EFpCD, axes=([0, 1, 2, 3], [1, 0, 2, 3]))
+    return z
 
 
 def create_double_impurity(ten, lambdas, operator):
@@ -374,8 +388,9 @@ def energy_six_directions(double_tensor_a, double_tensor_b, double_impurity_tens
     ten_b = ten_d = ten_f = double_tensor_b
     ten_a = double_impurity_tensors[0][0]  # dimp_ten_a
     ten_b = double_impurity_tensors[0][1]  # dimp_ten_b
-    ox1 = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+    # ox1 = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
     # O = create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+    ox1 = torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_c, ten_f)
 
     ten_a = ten_c = ten_e = double_tensor_a
     ten_b = ten_d = ten_f = double_tensor_b
@@ -419,18 +434,22 @@ def energy_six_directions(double_tensor_a, double_tensor_b, double_impurity_tens
 
     print('partition function', norm)
 
+    torus_norm = torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_c, ten_f)
+
     # o = px1 + px2 + py1 + py2 + pz1 + pz2
     # O = np.einsum('x x y y z z->', O)
 
     if num_of_iter % 1 == 0:
-        print('Expect. iter x1:', num_of_iter, 'energy:', - 3 * (ox1 / norm) / 2)
+        # print('Expect. iter x1:', num_of_iter, 'energy:', - 3 * (ox1 / norm) / 2)
+        print('Expect. iter x1:', num_of_iter, 'energy:', - 3 * (ox1 / torus_norm) / 2)
         print('Expect. iter x2:', num_of_iter, 'energy:', - 3 * (ox2 / norm) / 2)
         print('Expect. iter y1:', num_of_iter, 'energy:', - 3 * (oy1 / norm) / 2)
         print('Expect. iter y2:', num_of_iter, 'energy:', - 3 * (oy2 / norm) / 2)
         print('Expect. iter z1:', num_of_iter, 'energy:', - 3 * (oz1 / norm) / 2)
         print('Expect. iter z2:', num_of_iter, 'energy:', - 3 * (oz2 / norm) / 2)
 
-    return [ox1, ox2, oy1, oy2, oz1, oz2] / norm
+    # return [ox1, ox2, oy1, oy2, oz1, oz2] / norm
+    return [ox1 / torus_norm, ox2 / norm, oy1 / norm, oy2 / norm, oz1 / norm, oz2 / norm]
 
 
 def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
