@@ -341,6 +341,7 @@ def dimer_gas_operator(phi):
     zeta = np.zeros((2, 2, 2), dtype=complex)  # tau_tensor_{i j k}
     zeta[0][0][0] = math.cos(phi)
     zeta[1][0][0] = zeta[0][1][0] = zeta[0][0][1] = math.sin(phi)
+    # zeta[0][1][1] = zeta[1][0][1] = zeta[1][1][0] = math.sin(phi)
     sx, sy, sz, one = constants.get_spin_operators(spin)
     d = one.shape[0]
     R = np.zeros((d, d, 2, 2, 2), dtype=complex)  # Q_LG_{s s' i j k}
@@ -349,11 +350,11 @@ def dimer_gas_operator(phi):
             for k in range(2):
                 temp = np.eye(d)
                 if i == 0:
-                    temp = temp @ sx
+                    temp = temp @ sx  # constants.UX
                 if j == 0:
-                    temp = temp @ sy
+                    temp = temp @ sy  # constants.UY
                 if k == 0:
-                    temp = temp @ sz
+                    temp = temp @ sz  # constants.UZ
                 for s in range(d):
                     for sp in range(d):
                         R[s][sp][i][j][k] = zeta[i][j][k] * temp[s][sp]
@@ -457,7 +458,7 @@ tensor_b = apply_gas_operator(tensor_b, Q_LG)
 
 """
 # String-Gas state
-phi = math.pi * 0.28
+phi = math.pi * 0.275
 R = dimer_gas_operator(phi)
 tensor_a = apply_gas_operator(tensor_a, R)
 tensor_b = apply_gas_operator(tensor_b, R)
