@@ -485,7 +485,10 @@ def apply_operator_on_virtual_index(tensor, operator, direction):
 
 
 def calculate_global_flux_horizontal(tensor_a, tensor_b, lambdas, flip_vertical=False, flip_horizontal=False):
-    """Returns global flux in horizontal direction."""
+    """Returns global flux in horizontal direction.
+
+    Note: options flip_vertical=True or flip_horizontal=True work only on initial states.
+    """
 
     ten_a = ten_c = ten_e = ten_cp = create_double_tensor(tensor_a, lambdas)
     ten_b = ten_d = ten_f = ten_fp = create_double_tensor(tensor_b, lambdas)
@@ -515,7 +518,10 @@ def calculate_global_flux_horizontal(tensor_a, tensor_b, lambdas, flip_vertical=
 
 
 def calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, flip_vertical=False, flip_horizontal=False):
-    """Returns global flux in vertical direction"""
+    """Returns global flux in vertical direction.
+
+    Note: options flip_vertical=True or flip_horizontal=True work only on initial states.
+    """
 
     ten_a = ten_c = ten_e = ten_cp = create_double_tensor(tensor_a, lambdas)
     ten_b = ten_d = ten_f = ten_fp = create_double_tensor(tensor_b, lambdas)
