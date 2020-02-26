@@ -1,4 +1,4 @@
-# import math
+import math
 import numpy as np
 from scipy import linalg
 import functools
@@ -193,81 +193,6 @@ def create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f):
     EDC = None
 
     return np.transpose(plaquette, (0, 5, 2, 3, 1, 4))  # plaquette_{x xx y yy z zz}
-
-
-def partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f):
-    """
-
-    Directions:
-        * x : -
-        * y : /
-        * z : \
-
-          \        /
-           \ A    /
-            O----O B
-         F /      \
-       ---O        O---
-           \      / C
-          E O----O
-           /    D \
-          /        \
-
-    """
-
-    AD = np.tensordot(ten_a, ten_d, axes=(2, 2))  # AD_{x1 y1 x2 y2} = A_{x1 y1 z} D_{x2 y2 z}
-    BE = np.tensordot(ten_b, ten_e, axes=(1, 1))  # BE_{x1 z1 x2 z2} = B_{x1 y z1} E_{x2 y z2}
-    ABED = np.tensordot(AD, BE, axes=([0, 2], [0, 2]))  # ABED_{y1 y2 z1 z2} = AD_{x1 y1 x2 y2} BE_{x1 z1 x2 z2}
-    FC = np.tensordot(ten_f, ten_c, axes=(0, 0))  # FC_{y1 z2 y2 z1} = F_{x y1 z2} C_{x y2 z1}
-    z = np.tensordot(ABED, FC, axes=([0, 1, 2, 3], [0, 2, 3, 1]))  # z (scalar) = ABED_{y1 y2 z1 z2} FC_{y1 z2 y2 z1}
-
-    """
-    AD = np.tensordot(ten_a, ten_d, axes=(0, 0))  # AD_{y1 z1 y2 z2} = A_{x y1 z1} D_{x y2 z2}
-    BE = np.tensordot(ten_b, ten_e, axes=(2, 2))  # BE_{x1 y1 x2 y2} = B_{x1 y1 z} E_{x2 y2 z}
-    ABED = np.tensordot(AD, BE, axes=([0, 2], [1, 3]))  # ABED_{z1 z2 x1 x2} = AD_{y1 z1 y2 z2} BE_{x1 y1 x2 y2}
-    FC = np.tensordot(ten_f, ten_c, axes=(1, 1))  # FC_{x2 z1 x1 z2} = F_{x2 y z1} C_{x1 y z2}
-    z = np.tensordot(ABED, FC, axes=([0, 1, 2, 3], [3, 0, 2, 1]))  # z (scalar) = ABED_{z1 z2 x1 x2} FC_{x2 z1 x1 z2}
-    """
-
-    return z
-
-
-def torus_partition_function(A, B, C, D, E, F, Cp, Fp):
-
-    """
-
-    Directions:
-        * x : -
-        * y : /
-        * z : \
-
-              z1      y1
-               \ A    /
-        z2      O----O B    y2
-         \   F /      \     /
-       C' O---O        O---O F'
-         /     \      / C   \
-        y1    E O----O       z1
-               /    D \
-              y2      z2
-
-    """
-
-    # AF_{ix, z1, ax, mz} = A_{ix ny z1} * F_{ax, ny, mz}
-    AF = np.tensordot(A, F, axes=(1, 1))
-    # BCp_{ix, jz, ax, z2} = B_{ix, y1, jz} * Cp_{ax, y1, z2}
-    BCp = np.tensordot(B, Cp, axes=(1, 1))
-    # AFBCp_{z1, mz, jz, z2} = AF_{ix, z1, ax, mz} * BCp_{ix, jz, ax, z2}
-    AFBCp = np.tensordot(AF, BCp, axes=([0, 2], [0, 2]))
-    # EFp_{lx, mz, bx, z1} = E_{lx, y2, mz} * Fp_{bx, y2, z1}
-    EFp = np.tensordot(E, Fp, axes=(1, 1))
-    # CD_{bx, jz, lx, z2} = C_{bx, ky, jz} * D_{lx, ky, z2}
-    CD = np.tensordot(C, D, axes=(1, 1))
-    # EFpCD_{mz, z1, jz, z2} = EFp_{lx, mz, bx, z1} * CD_{bx, jz, lx, z2}
-    EFpCD = np.tensordot(EFp, CD, axes=([0, 2], [2, 0]))
-    # z = AFBCp_{z1, mz, jz, z2} * EFpCD_{mz, z1, jz, z2}
-    z = np.tensordot(AFBCp, EFpCD, axes=([0, 1, 2, 3], [1, 0, 2, 3]))
-    return z
 
 
 def create_double_impurity(ten, lambdas, operator):
@@ -465,44 +390,156 @@ def energy_six_directions(double_tensor_a, double_tensor_b, double_impurity_tens
     return [ox1, ox2, oy1, oy2, oz1, oz2] / norm
 
 
-def calculate_global_flux_horizontal(tensor_a, tensor_b, lambdas, double_tensor_a, double_tensor_b):
+def partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f):
+    """
+
+    Directions:
+        * x : -
+        * y : /
+        * z : \
+
+          \        /
+           \ A    /
+            O----O B
+         F /      \
+       ---O        O---
+           \      / C
+          E O----O
+           /    D \
+          /        \
+
+    """
+
+    AD = np.tensordot(ten_a, ten_d, axes=(2, 2))  # AD_{x1 y1 x2 y2} = A_{x1 y1 z} D_{x2 y2 z}
+    BE = np.tensordot(ten_b, ten_e, axes=(1, 1))  # BE_{x1 z1 x2 z2} = B_{x1 y z1} E_{x2 y z2}
+    ABED = np.tensordot(AD, BE, axes=([0, 2], [0, 2]))  # ABED_{y1 y2 z1 z2} = AD_{x1 y1 x2 y2} BE_{x1 z1 x2 z2}
+    FC = np.tensordot(ten_f, ten_c, axes=(0, 0))  # FC_{y1 z2 y2 z1} = F_{x y1 z2} C_{x y2 z1}
+    z = np.tensordot(ABED, FC, axes=([0, 1, 2, 3], [0, 2, 3, 1]))  # z (scalar) = ABED_{y1 y2 z1 z2} FC_{y1 z2 y2 z1}
+
+    """
+    AD = np.tensordot(ten_a, ten_d, axes=(0, 0))  # AD_{y1 z1 y2 z2} = A_{x y1 z1} D_{x y2 z2}
+    BE = np.tensordot(ten_b, ten_e, axes=(2, 2))  # BE_{x1 y1 x2 y2} = B_{x1 y1 z} E_{x2 y2 z}
+    ABED = np.tensordot(AD, BE, axes=([0, 2], [1, 3]))  # ABED_{z1 z2 x1 x2} = AD_{y1 z1 y2 z2} BE_{x1 y1 x2 y2}
+    FC = np.tensordot(ten_f, ten_c, axes=(1, 1))  # FC_{x2 z1 x1 z2} = F_{x2 y z1} C_{x1 y z2}
+    z = np.tensordot(ABED, FC, axes=([0, 1, 2, 3], [3, 0, 2, 1]))  # z (scalar) = ABED_{z1 z2 x1 x2} FC_{x2 z1 x1 z2}
+    """
+
+    return z
+
+
+def torus_partition_function(A, B, C, D, E, F, Cp, Fp):
+
+    """
+
+    Directions:
+        * x : -
+        * y : /
+        * z : \
+
+              z1      y1
+               \ A    /
+        z2      O----O B    y2
+         \   F /      \     /
+       C' O---O        O---O F'
+         /     \      / C   \
+        y1    E O----O       z1
+               /    D \
+              y2      z2
+
+    """
+
+    # AF_{ix, z1, ax, mz} = A_{ix ny z1} * F_{ax, ny, mz}
+    AF = np.tensordot(A, F, axes=(1, 1))
+    # BCp_{ix, jz, ax, z2} = B_{ix, y1, jz} * Cp_{ax, y1, z2}
+    BCp = np.tensordot(B, Cp, axes=(1, 1))
+    # AFBCp_{z1, mz, jz, z2} = AF_{ix, z1, ax, mz} * BCp_{ix, jz, ax, z2}
+    AFBCp = np.tensordot(AF, BCp, axes=([0, 2], [0, 2]))
+    # EFp_{lx, mz, bx, z1} = E_{lx, y2, mz} * Fp_{bx, y2, z1}
+    EFp = np.tensordot(E, Fp, axes=(1, 1))
+    # CD_{bx, jz, lx, z2} = C_{bx, ky, jz} * D_{lx, ky, z2}
+    CD = np.tensordot(C, D, axes=(1, 1))
+    # EFpCD_{mz, z1, jz, z2} = EFp_{lx, mz, bx, z1} * CD_{bx, jz, lx, z2}
+    EFpCD = np.tensordot(EFp, CD, axes=([0, 2], [2, 0]))
+    # z = AFBCp_{z1, mz, jz, z2} * EFpCD_{mz, z1, jz, z2}
+    z = np.tensordot(AFBCp, EFpCD, axes=([0, 1, 2, 3], [1, 0, 2, 3]))
+    return z
+
+
+def apply_operator_on_virtual_index(tensor, operator, direction):
+    """
+    a j y z, ij -> a y z i -> a i y z
+    a x j z, ij -> a x z i -> a x i z
+    a x y j, ij -> a x y i -> a x y i
+    """
+
+    direction_to_index = {'x': 1, 'y': 2, 'z': 3}
+    i = direction_to_index[direction]
+    result = np.tensordot(tensor, operator, axes=(i, 1))
+
+    if direction == 'x':
+        result = np.transpose(result, (0, 3, 1, 2))
+    elif direction == 'y':
+        result = np.swapaxes(result, 2, 3)
+
+    return result
+
+
+def calculate_global_flux_horizontal(tensor_a, tensor_b, lambdas, flip_vertical=False, flip_horizontal=False):
     """Returns global flux in horizontal direction."""
 
-    ten_a = ten_c = ten_e = double_tensor_a
-    ten_b = ten_d = ten_f = double_tensor_b
-    ten_cp, ten_fp = double_tensor_a, double_tensor_b
+    ten_a = ten_c = ten_e = ten_cp = create_double_tensor(tensor_a, lambdas)
+    ten_b = ten_d = ten_f = ten_fp = create_double_tensor(tensor_b, lambdas)
+
+    flipped_tensor_a = tensor_a
+    if flip_vertical:
+        flipped_tensor_a = apply_operator_on_virtual_index(tensor_a, constants.sz, direction='y')
+
+    ten_e = create_double_tensor(flipped_tensor_a, lambdas)
+    ten_cp = create_double_tensor(flipped_tensor_a, lambdas)
+
+    flipped_tensor_b = tensor_b
+    if flip_horizontal:
+        flipped_tensor_b = apply_operator_on_virtual_index(tensor_b, constants.sz, direction='z')
+
+    ten_d = create_double_tensor(flipped_tensor_b, lambdas)
+    ten_fp = create_double_tensor(flipped_tensor_b, lambdas)
 
     norm = torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_cp, ten_fp)
 
     ten_a = create_double_impurity(tensor_a, lambdas, constants.UZ)
     ten_b = create_double_impurity(tensor_b, lambdas, constants.UZ)
-    ten_c = double_tensor_a
-    ten_d = double_tensor_b
-    ten_e = double_tensor_a
     ten_f = create_double_impurity(tensor_b, lambdas, constants.UZ)
-    ten_cp = create_double_impurity(tensor_a, lambdas, constants.UZ)
-    ten_fp = double_tensor_b
+    ten_cp = create_double_impurity(flipped_tensor_a, lambdas, constants.UZ)
 
     return torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_cp, ten_fp) / norm
 
 
-def calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, double_tensor_a, double_tensor_b):
+def calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, flip_vertical=False, flip_horizontal=False):
     """Returns global flux in vertical direction"""
 
-    ten_a = ten_c = ten_e = double_tensor_a
-    ten_b = ten_d = ten_f = double_tensor_b
-    ten_cp, ten_fp = double_tensor_a, double_tensor_b
+    ten_a = ten_c = ten_e = ten_cp = create_double_tensor(tensor_a, lambdas)
+    ten_b = ten_d = ten_f = ten_fp = create_double_tensor(tensor_b, lambdas)
+
+    flipped_tensor_a = tensor_a
+    if flip_vertical:
+        flipped_tensor_a = apply_operator_on_virtual_index(tensor_a, constants.sz, direction='y')
+
+    ten_e = create_double_tensor(flipped_tensor_a, lambdas)
+    ten_cp = create_double_tensor(flipped_tensor_a, lambdas)
+
+    flipped_tensor_b = tensor_b
+    if flip_horizontal:
+        flipped_tensor_b = apply_operator_on_virtual_index(tensor_b, constants.sz, direction='z')
+
+    ten_d = create_double_tensor(flipped_tensor_b, lambdas)
+    ten_fp = create_double_tensor(flipped_tensor_b, lambdas)
 
     norm = torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_cp, ten_fp)
 
     ten_a = create_double_impurity(tensor_a, lambdas, constants.UY)
     ten_b = create_double_impurity(tensor_b, lambdas, constants.UY)
     ten_c = create_double_impurity(tensor_a, lambdas, constants.UY)
-    ten_d = double_tensor_b
-    ten_e = double_tensor_a
-    ten_f = double_tensor_b
-    ten_cp = double_tensor_a
-    ten_fp = create_double_impurity(tensor_b, lambdas, constants.UY)
+    ten_fp = create_double_impurity(flipped_tensor_b, lambdas, constants.UY)
 
     return torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_cp, ten_fp) / norm
 
@@ -566,10 +603,12 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
     for i in range(6):  # impurity_6_ring initialization used for flux calculation
         double_impurity_6ring[i] = create_double_impurity(tensors[i % 2], lambdas, spin_rotation_operators[i % 3])
 
-    w_horizontal = calculate_global_flux_horizontal(tensor_a, tensor_b, lambdas, double_tensor_a, double_tensor_b)
+    w_horizontal = calculate_global_flux_horizontal(tensor_a, tensor_b, lambdas, True, False)
     print('global flux w_horizontal = ', w_horizontal)
-    w_vertical = calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, double_tensor_a, double_tensor_b)
+    w_vertical = calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, False, True)
     print('global flux w_vertical = ', w_vertical)
+
+    exit()
 
     # operator = (sx / 2, sy / 2, sz / 2)  # operators for Heisenberg model energy calculation
     # operator = operators[0] * 2  # operators for Kitaev model energy calculation
