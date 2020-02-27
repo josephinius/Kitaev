@@ -63,42 +63,44 @@ def apply_gas_operator(tensor, gas_operator):
 
 
 def calculate_norm(lam):
+    """Returns L2 norm for 1-dimensional (real) numpy array."""
     norm = np.tensordot(lam, lam, axes=(0, 0))
     return math.sqrt(norm)
 
 
-def calculate_tensor_norm(ten):
+def complex_inner_product(ten):
+    """Returns complex inner product of flattened tensor."""
     ten = ten.reshape(-1)
     return np.tensordot(ten, np.conj(ten), axes=(0, 0))
 
 
 def save_array(np_array, file_name):
+    """Saves numpy array into file; returns nothing."""
     np.save(file_name, np_array)
 
 
 def tensor_rotate(ten):
+    """Returns tensor with virtual indices rotated anti-clock wise."""
     return np.transpose(ten, (0, 2, 3, 1))
 
 
 def lambdas_rotate(lam):
+    """Returns lambdas rotated anti-clock wise."""
     return lam[1:] + [lam[0]]
 
 
-def equal_list_eps(list1, list2, eps=1.E-10):
-    for a, b in zip(list1, list2):
-        if abs(a - b) > eps:
-            return False
-    return True
-
-
-def array_difference(a1, a2):
-    l = min(len(a1), len(a2))
-    return np.sum(np.abs(a1[:l] - a2[:l]))
+def abs_list_difference(a1, a2):
+    """Returns absolute difference between two 1-dimensional arrays."""
+    if len(a1) > len(a2):
+        return abs_list_difference(a2, a1)
+    n = len(a1)
+    return np.sum(np.abs(a1[:n] - a2[:n])) + np.sum(np.abs(a2[n:]))
 
 
 def pair_contraction(ten_a, ten_b, lambdas):
-
     """
+    Returns result of contraction of two tensors via x leg.
+
     Local tensors: ten_a, ten_b
     Physical bonds (vertical legs): (i), (j)
     Virtual bonds (horizontal legs): x, y1, z1, y2, z2
@@ -134,20 +136,15 @@ def apply_gate(u_gate, pair):
 
 
 def tensor_pair_update(ten_a, ten_b, theta, lambdas, normalize=True):
+    """Returns new tensor pair and corresponding (optionally normalized) singular values."""
     da, db = ten_a.shape, ten_b.shape
-    # print('da', da)
-    # print('db', db)
     theta = theta.reshape((d * da[2] * da[3], d * db[2] * db[3]))  # theta_{(i y1 z1), (j y2 z2)}
 
-    # theta /= np.max(np.abs(theta))
+    x, ss, y = linalg.svd(theta, lapack_driver='gesvd')  # lapack_driver='gesdd' or 'gesvd'
 
-    x, ss, y = linalg.svd(theta, lapack_driver='gesvd')
-    # x, ss, y = linalg.svd(theta, lapack_driver='gesdd')
-
-    # print('ss', ss)
-    # norm = ss[0]
     if normalize:
         ss = ss / sum(ss)
+    # another way of normalizing singular values would be by taking norm = ss[0]
 
     dim_new = min(ss.shape[0], D)
 
@@ -189,32 +186,22 @@ def tensor_pair_update(ten_a, ten_b, theta, lambdas, normalize=True):
 
 
 def update_step(ten_a, ten_b, lambdas, u_gates=None):
-
-    # print('in update_step')
+    """Performs simple update in all three directions and returns updated tensors and singular values."""
 
     for i in range(3):
-
-        # print(f'step {i}')
-
         pair = pair_contraction(ten_a, ten_b, lambdas)
-
         if u_gates is not None:
             theta = apply_gate(u_gates[i], pair)
         else:
             theta = pair
-
         normalize = u_gates is not None
         ten_a, ten_b, lambdas[0] = tensor_pair_update(ten_a, ten_b, theta, lambdas, normalize)
-
         # print('lam updated', lambdas)
-
         # print('ten_a.shape', ten_a.shape)
         # print('ten_b.shape', ten_b.shape)
-
         ten_a = tensor_rotate(ten_a)
         ten_b = tensor_rotate(ten_b)
         lambdas = lambdas_rotate(lambdas)
-
         # print('lam rotated', lambdas)
 
     # norm_a = np.max(np.abs(ten_a))
@@ -230,19 +217,26 @@ def update_step(ten_a, ten_b, lambdas, u_gates=None):
 
 
 def psi_sigma_psi(psi, sigma):
+    """Returns <psi|sigma|psi>."""
     temp = np.tensordot(sigma, psi.reshape(-1), axes=(1, 0))
     return np.tensordot(np.conj(psi.reshape(-1)), temp, axes=(0, 0))
 
 
 def psi_zero_test(psi, spin):
+    """Returns <psi|(sx + sy + sz)|psi> - 1/sqrt(3).
+
+    Note: For magnetized state, we have <psi|(sx + sy + sz)|psi> = 1/sqrt(3).
+    """
     sx, sy, sz, _ = constants.get_spin_operators(spin)
     sigmas = sx, sy, sz
-    # print('psi_sigma_psi(psi, s)', psi_sigma_psi(psi, constants.SX))
     return sum(abs(psi_sigma_psi(psi, s) - 1 / math.sqrt(3)) for s in sigmas)
 
 
 def prepare_magnetized_state(tensor_a, tensor_b, spin):
-    """Returns state |0> = (1 1 1)"""
+    """Returns magnetized state (i.e. polarized state) |0> = (1 1 1).
+
+    Note: We use analytical form of magnetized state for spin=1 Kitaev model.
+    """
 
     print('In prepare_magnetized_state...')
 
@@ -254,7 +248,7 @@ def prepare_magnetized_state(tensor_a, tensor_b, spin):
     i = 0
     while psi_zero_test(tensor_a, spin) > 1.E-15:
         tensor_a = np.tensordot(op, tensor_a, axes=(1, 0))
-        tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
+        tensor_a = tensor_a / math.sqrt(np.real(complex_inner_product(tensor_a)))
         if i % 10 == 0:
             print(i, psi_zero_test(tensor_a, spin))
             # tau /= 1.0001
@@ -268,7 +262,7 @@ def prepare_magnetized_state(tensor_a, tensor_b, spin):
     i = 0
     while psi_zero_test(tensor_b, spin) > 1.E-15:
         tensor_b = np.tensordot(op, tensor_b, axes=(1, 0))
-        tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
+        tensor_b = tensor_b / math.sqrt(np.real(complex_inner_product(tensor_b)))
         if i % 10 == 0:
             print(i, psi_zero_test(tensor_b, spin))
             # tau *= 1.0001
@@ -373,7 +367,7 @@ spin = "1"  # implemented options so far: spin = "1", "1/2"
 k = 1.
 h = 0.E-14
 # print('field', h)
-D = 2
+D = 4
 
 ########################################################################################################################
 
@@ -559,12 +553,9 @@ while tau >= tau_final and (j * refresh < 10100):
     f.write('%d\t\t%.15f\t%.15f\t%d\n' % ((j + 1) * refresh, np.real(energy), tau, num_of_iter))
     f.close()
 
-    # test1 = equal_list_eps(lambdas[0], lambdas_memory[0])
-    s1 = array_difference(lambdas[0], lambdas_memory[0])
-    # test2 = equal_list_eps(lambdas[1], lambdas_memory[1])
-    s2 = array_difference(lambdas[1], lambdas_memory[1])
-    # test3 = equal_list_eps(lambdas[2], lambdas_memory[2])
-    s3 = array_difference(lambdas[2], lambdas_memory[2])
+    s1 = abs_list_difference(lambdas[0], lambdas_memory[0])
+    s2 = abs_list_difference(lambdas[1], lambdas_memory[1])
+    s3 = abs_list_difference(lambdas[2], lambdas_memory[2])
     lambdas_memory = copy.deepcopy(lambdas)
     print(s1 + s2 + s3)
     # if s1 < 1.E-11 and s2 < 1.E-11 and s3 < 1.E-11:

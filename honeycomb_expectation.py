@@ -611,12 +611,12 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
     for i in range(6):  # impurity_6_ring initialization used for flux calculation
         double_impurity_6ring[i] = create_double_impurity(tensors[i % 2], lambdas, spin_rotation_operators[i % 3])
 
+    """
     w_horizontal = calculate_global_flux_horizontal(tensor_a, tensor_b, lambdas, True, False)
     print('global flux w_horizontal = ', w_horizontal)
     w_vertical = calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, False, True)
     print('global flux w_vertical = ', w_vertical)
-
-    exit()
+    """
 
     # operator = (sx / 2, sy / 2, sz / 2)  # operators for Heisenberg model energy calculation
     # operator = operators[0] * 2  # operators for Kitaev model energy calculation
@@ -670,7 +670,7 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
     # return measurement1 / norm, 0
     # return measurement2 / norm, 0
 
-    return measurement / norm, 0
+    # return measurement / norm, 0
 
     energy = 1
     energy_mem = -1
