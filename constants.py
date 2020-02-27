@@ -54,7 +54,7 @@ UZ = np.array([
 
 # ID3 = np.eye(3)
 
-# Spin=1 Kitaev model - magnetized (polarized)
+# Spin=1 Kitaev model - magnetized (polarized) state
 mag_state_s1_kitaev = (- 1j * (2 + math.sqrt(3)), (1 - 1j) * (math.sqrt(2) + math.sqrt(6)) / 2, 1)
 
 

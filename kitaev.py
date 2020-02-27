@@ -238,11 +238,10 @@ def prepare_magnetized_state(tensor_a, tensor_b, spin):
     Note: We use analytical form of magnetized state for spin=1 Kitaev model.
     """
 
-    print('In prepare_magnetized_state...')
+    print('In prepare_magnetized_state')
 
     tau = 100.
     sx, sy, sz, _ = constants.get_spin_operators(spin)
-    # op = construct_ite_operator(tau, - constants.SX - constants.SY - constants.SZ)
     op = construct_ite_operator(- tau, sx + sy + sz)
 
     i = 0
@@ -251,13 +250,9 @@ def prepare_magnetized_state(tensor_a, tensor_b, spin):
         tensor_a = tensor_a / math.sqrt(np.real(complex_inner_product(tensor_a)))
         if i % 10 == 0:
             print(i, psi_zero_test(tensor_a, spin))
-            # tau /= 1.0001
-            # op = construct_ite_operator(tau, - constants.SX - constants.SY - constants.SZ)
         i += 1
 
     print(i, psi_zero_test(tensor_a, spin))
-
-    # tau = 10.
 
     i = 0
     while psi_zero_test(tensor_b, spin) > 1.E-15:
@@ -265,8 +260,6 @@ def prepare_magnetized_state(tensor_a, tensor_b, spin):
         tensor_b = tensor_b / math.sqrt(np.real(complex_inner_product(tensor_b)))
         if i % 10 == 0:
             print(i, psi_zero_test(tensor_b, spin))
-            # tau *= 1.0001
-            # op = construct_ite_operator(tau, - constants.SX - constants.SY - constants.SZ)
         i += 1
 
     print(i, psi_zero_test(tensor_b, spin))
@@ -448,6 +441,8 @@ phi = math.pi * 0.275
 R = dimer_gas_operator(phi)
 tensor_a = apply_gas_operator(tensor_a, R)
 tensor_b = apply_gas_operator(tensor_b, R)
+# Note 1: Dimer gas operator R is probably not correct as it doesn't lead to expected GS energy results.
+# Note 2: Moreover, we observe strong anisotropy in energy for above defined dimer gas operator.
 """
 
 # lambdas = [np.array([1., 1.]) / math.sqrt(2), np.array([1., 1.]) / math.sqrt(2), np.array([1., 1.]) / math.sqrt(2)]

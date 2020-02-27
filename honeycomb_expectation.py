@@ -9,11 +9,11 @@ import copy
 EPS = constants.EPS
 
 
-def tensor_rotate(ten):
+def tensor_rotate(ten):  # TODO: unify with kitaev.py
     return np.transpose(ten, (0, 2, 3, 1))
 
 
-def lambdas_rotate(lam):
+def lambdas_rotate(lam):  # TODO: unify with kitaev.py
     return lam[1:] + [lam[0]]
 
 
