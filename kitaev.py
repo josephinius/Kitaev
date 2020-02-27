@@ -144,7 +144,7 @@ def tensor_pair_update(ten_a, ten_b, theta, lambdas, normalize=True):
 
     if normalize:
         ss = ss / sum(ss)
-    # another way of normalizing singular values would be by taking norm = ss[0]
+    # another way of normalizing singular values would be by dividing by norm = ss[0]
 
     dim_new = min(ss.shape[0], D)
 
@@ -275,7 +275,6 @@ def prepare_magnetized_state(tensor_a, tensor_b, spin):
 
 
 def kitaev_spin_one_half_ite_operator(tau):
-    # TODO: implement
     pass
 
 
@@ -357,17 +356,15 @@ def dimer_gas_operator(phi):
 
 ########################################################################################################################
 
-# TODO: option for Heisenberg model
+# TODO: implement option for Heisenberg model
 
 model = "Kitaev"
 # model = "Heisenberg"
-
 spin = "1"  # implemented options so far: spin = "1", "1/2"
-
 k = 1.
 h = 0.E-14
 # print('field', h)
-D = 4
+D = 8  # max virtual (bond) dimension
 
 ########################################################################################################################
 
@@ -388,7 +385,6 @@ else:
     raise ValueError('model should be either "Kitaev" or "Heisenberg"')
 
 xi = 1  # initial virtual (bond) dimension
-# D = 1  # max virtual (bond) dimension
 
 # tensor_a = np.ones((d, xi, xi, xi)) / math.sqrt(d)
 # tensor_b = np.ones((d, xi, xi, xi)) / math.sqrt(d)
@@ -399,15 +395,11 @@ xi = 1  # initial virtual (bond) dimension
 tensor_a = np.zeros((d, xi, xi, xi), dtype=complex)
 tensor_b = np.zeros((d, xi, xi, xi), dtype=complex)
 
-# Spin=1 Kitaev model polarized state:
-
-tensor_a[0][0][0][0] = - 1j * (2 + math.sqrt(3))
-tensor_a[1][0][0][0] = (1 - 1j) * (math.sqrt(2) + math.sqrt(6)) / 2
-tensor_a[2][0][0][0] = 1
-
-tensor_b[0][0][0][0] = - 1j * (2 + math.sqrt(3))
-tensor_b[1][0][0][0] = (1 - 1j) * (math.sqrt(2) + math.sqrt(6)) / 2
-tensor_b[2][0][0][0] = 1
+if model is "Kitaev" and spin is "1":
+    # Spin=1 Kitaev model polarized state
+    for i, x in enumerate(constants.mag_state_s1_kitaev):
+        tensor_a[i][0][0][0] = x
+        tensor_b[i][0][0][0] = x
 
 """
 tensor_a = np.zeros((d, xi, xi, xi))
