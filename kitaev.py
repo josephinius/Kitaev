@@ -232,7 +232,7 @@ def psi_zero_test(psi, spin):
     return sum(abs(psi_sigma_psi(psi, s) - 1 / math.sqrt(3)) for s in sigmas)
 
 
-def prepare_magnetized_state(tensor_a, tensor_b, spin):
+def prepare_magnetized_state(tensor, spin):
     """Returns magnetized state (i.e. polarized state) |0> = (1 1 1).
 
     Note: We use analytical form of magnetized state for spin=1 Kitaev model.
@@ -240,31 +240,21 @@ def prepare_magnetized_state(tensor_a, tensor_b, spin):
 
     print('In prepare_magnetized_state')
 
-    tau = 100.
+    step = 100.
     sx, sy, sz, _ = constants.get_spin_operators(spin)
-    op = construct_ite_operator(- tau, sx + sy + sz)
+    op = construct_ite_operator(- step, sx + sy + sz)
 
     i = 0
-    while psi_zero_test(tensor_a, spin) > 1.E-15:
-        tensor_a = np.tensordot(op, tensor_a, axes=(1, 0))
-        tensor_a = tensor_a / math.sqrt(np.real(complex_inner_product(tensor_a)))
+    while psi_zero_test(tensor, spin) > 1.E-15:
+        tensor = np.tensordot(op, tensor, axes=(1, 0))
+        tensor = tensor / math.sqrt(np.real(complex_inner_product(tensor)))
         if i % 10 == 0:
-            print(i, psi_zero_test(tensor_a, spin))
+            print(i, psi_zero_test(tensor, spin))
         i += 1
 
-    print(i, psi_zero_test(tensor_a, spin))
+    print(i, psi_zero_test(tensor, spin))
 
-    i = 0
-    while psi_zero_test(tensor_b, spin) > 1.E-15:
-        tensor_b = np.tensordot(op, tensor_b, axes=(1, 0))
-        tensor_b = tensor_b / math.sqrt(np.real(complex_inner_product(tensor_b)))
-        if i % 10 == 0:
-            print(i, psi_zero_test(tensor_b, spin))
-        i += 1
-
-    print(i, psi_zero_test(tensor_b, spin))
-
-    return tensor_a, tensor_b
+    return tensor
 
 
 def kitaev_spin_one_half_ite_operator(tau):
@@ -353,7 +343,8 @@ def dimer_gas_operator(phi):
 
 model = "Kitaev"
 # model = "Heisenberg"
-spin = "1"  # implemented options so far: spin = "1", "1/2"
+
+spin = "1/2"  # implemented options so far: spin = "1", "1/2" for Kitaev model, spin = "1/2" for Heisenberg model
 k = 1.
 h = 0.E-14
 # print('field', h)
@@ -387,20 +378,24 @@ xi = 1  # initial virtual (bond) dimension
 
 tensor_a = np.zeros((d, xi, xi, xi), dtype=complex)
 tensor_b = np.zeros((d, xi, xi, xi), dtype=complex)
+lambdas = [np.array([1., ], dtype=complex), np.array([1., ], dtype=complex), np.array([1., ], dtype=complex)]
 
-if model is "Kitaev" and spin is "1":
-    # Spin=1 Kitaev model polarized state
-    for i, x in enumerate(constants.mag_state_s1_kitaev):
-        tensor_a[i][0][0][0] = x
-        tensor_b[i][0][0][0] = x
+if model is "Kitaev":
+    if spin is "1":
+        # Spin=1 Kitaev model polarized state
+        for i, x in enumerate(constants.mag_state_s1_kitaev):
+            tensor_a[i][0][0][0] = x
+            tensor_b[i][0][0][0] = x
+    elif spin is "1/2":
+        tensor_a = np.ones((d, xi, xi, xi), dtype=complex)
+        tensor_b = np.ones((d, xi, xi, xi), dtype=complex)
+        tensor_a = prepare_magnetized_state(tensor_a, spin)
+        tensor_b = prepare_magnetized_state(tensor_b, spin)
 
-"""
-tensor_a = np.zeros((d, xi, xi, xi))
-tensor_b = np.zeros((d, xi, xi, xi))
-tensor_a[0][0][0][0] = 1.
-tensor_a[1][0][0][0] = 1.
-tensor_b[0][0][0][0] = 1.
-"""
+if model is "Heisenberg":
+    tensor_a[0][0][0][0] = 1.
+    tensor_a[1][0][0][0] = 1.
+    tensor_b[0][0][0][0] = 1.
 
 # norm_a = np.max(np.abs(tensor_a))
 # norm_b = np.max(np.abs(tensor_b))
@@ -410,45 +405,48 @@ tensor_b[0][0][0][0] = 1.
 # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
 # tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
 
-# print('polarization test', psi_zero_test(tensor_a, spin))
-
-lambdas = [np.array([1., ], dtype=complex), np.array([1., ], dtype=complex), np.array([1., ], dtype=complex)]
-
-# tensor_a, tensor_b = prepare_magnetized_state(tensor_a, tensor_b, spin)
-# print('magnetized state')
-# print(tensor_a)
-# print(tensor_b)
-
 Q_LG = constants.create_loop_gas_operator(spin)
 
 # print(Q_LG)
 # print(tensor_a.shape)
 
-# tensor_a = np.einsum('s t i j k, t l m n->s i l j m k n', constants.Q_LG, tensor_a)
-# tensor_a = tensor_a.reshape((d, 2, 2, 2))
-tensor_a = apply_gas_operator(tensor_a, Q_LG)
+if model is "Kitaev":
+    # tensor_a = np.einsum('s t i j k, t l m n->s i l j m k n', constants.Q_LG, tensor_a)
+    # tensor_a = tensor_a.reshape((d, 2, 2, 2))
+    tensor_a = apply_gas_operator(tensor_a, Q_LG)
+    # tensor_b = np.einsum('s t i j k, t l m n->s i l j m k n', constants.Q_LG, tensor_b)
+    # tensor_b = tensor_b.reshape((d, 2, 2, 2))
+    tensor_b = apply_gas_operator(tensor_b, Q_LG)
+    # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
+    # tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
 
-# tensor_b = np.einsum('s t i j k, t l m n->s i l j m k n', constants.Q_LG, tensor_b)
-# tensor_b = tensor_b.reshape((d, 2, 2, 2))
-tensor_b = apply_gas_operator(tensor_b, Q_LG)
+    """
+    # String-Gas state
+    phi = math.pi * 0.275
+    R = dimer_gas_operator(phi)
+    tensor_a = apply_gas_operator(tensor_a, R)
+    tensor_b = apply_gas_operator(tensor_b, R)
+    # Note 1: Dimer gas operator R is probably not correct as it doesn't lead to expected GS energy results.
+    # Note 2: Moreover, we observe strong anisotropy in energy for above defined dimer gas operator.
+    """
 
-# tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
-# tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
+    """
+    lambdas = [np.array([1., 1.]) / math.sqrt(2), 
+               np.array([1., 1.]) / math.sqrt(2), 
+               np.array([1., 1.]) / math.sqrt(2)]
+    """
 
-"""
-# String-Gas state
-phi = math.pi * 0.275
-R = dimer_gas_operator(phi)
-tensor_a = apply_gas_operator(tensor_a, R)
-tensor_b = apply_gas_operator(tensor_b, R)
-# Note 1: Dimer gas operator R is probably not correct as it doesn't lead to expected GS energy results.
-# Note 2: Moreover, we observe strong anisotropy in energy for above defined dimer gas operator.
-"""
-
-# lambdas = [np.array([1., 1.]) / math.sqrt(2), np.array([1., 1.]) / math.sqrt(2), np.array([1., 1.]) / math.sqrt(2)]
-lambdas = [np.array([1., 1.], dtype=complex), np.array([1., 1.], dtype=complex), np.array([1., 1.], dtype=complex)]
-# lambdas = [np.ones((4,), dtype=complex) / 2, np.ones((4,), dtype=complex) / 2, np.ones((4,), dtype=complex) / 2]
-# lambdas = [np.ones((4,), dtype=complex), np.ones((4,), dtype=complex), np.ones((4,), dtype=complex)]
+    lambdas = [np.array([1., 1.], dtype=complex),
+               np.array([1., 1.], dtype=complex),
+               np.array([1., 1.], dtype=complex)]
+    """
+    lambdas = [np.ones((4,), dtype=complex) / 2, 
+               np.ones((4,), dtype=complex) / 2, 
+               np.ones((4,), dtype=complex) / 2]
+    lambdas = [np.ones((4,), dtype=complex), 
+               np.ones((4,), dtype=complex), 
+               np.ones((4,), dtype=complex)]
+    """
 
 # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
 # tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
@@ -478,7 +476,7 @@ print('Energy of the initial state', energy, 'mag_x:', mag_x, 'num_of_iter', num
 """
 
 energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D)
-print('Energy of the initial state', 3 * energy / 2, 'num_of_iter', num_of_iter)
+print('Energy of the initial state', - 3 * energy / 2, 'num_of_iter', num_of_iter)
 # print('Flux of the initial state', energy, 'num_of_iter', num_of_iter)
 
 with open(file_name, 'w') as f:
@@ -495,9 +493,14 @@ energy_old = -1
 
 lambdas_memory = copy.deepcopy(lambdas)
 
-# H = construct_hamiltonian(h, spin, k)
-# u_gates = np.array([construct_ite_operator(tau, hamiltonian).reshape(d, d, d, d) for hamiltonian in H])
-u_gates = [exp_ham.reshape(d, d, d, d) for exp_ham in kitaev_spin_one_ite_operator(tau)]
+u_gates = None
+if model is "Kitaev" and spin is "1":
+        u_gates = [exp_ham.reshape(d, d, d, d) for exp_ham in kitaev_spin_one_ite_operator(tau)]  # analytic form
+else:
+    # Heisenberg and spin=1/2 Kitaev
+    H = construct_hamiltonian(h, spin, k)
+    u_gates = np.array([construct_ite_operator(tau, hamiltonian).reshape(d, d, d, d) for hamiltonian in H])
+
 
 j = 0  # ITE-step index
 
@@ -529,7 +532,7 @@ while tau >= tau_final and (j * refresh < 10100):
     energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a_copy, tensor_b_copy, lambdas_copy, D)
     # energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D)
 
-    energy = 3 * energy / 2
+    energy = - 3 * energy / 2
     # energy = energy / 4
 
     # print('# ITE flow iter:', (j + 1) * refresh, 'energy:', energy, 'mag_x:', mag_x, 'num_of_iter:', num_of_iter)

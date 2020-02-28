@@ -587,8 +587,10 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
     dimp_ten_b_init = create_double_impurity(tensor_b, lambdas)  # x-direction
     """
 
+    sx, sy, sz, _ = constants.get_spin_operators(spin)
+
     double_impurity_tensors = []  # for calculating the energy
-    for op in (constants.SX, constants.SY, constants.SZ):
+    for op in (sx, sy, sz):
         a = create_double_impurity(tensor_a, lambdas, op)
         b = create_double_impurity(tensor_b, lambdas, op)
         # tensor_a = tensor_rotate(tensor_a)
@@ -600,7 +602,6 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
     # dimp_ten_b_mag = copy.deepcopy(double_tensor_b)
 
     double_impurity_6ring = [None] * 6  # A, B, C, D, E, F - double impurity tensors
-    sx, sy, sz, _ = constants.get_spin_operators(spin)
     spin_rotation_operators = None
     if spin == "1/2":
         spin_rotation_operators = (sz, sy, sx)

@@ -1,4 +1,4 @@
-# Kitaev S=1 model - ITE flow
-# D=4, tau=1.00000000E-02, h=0.00000000000000E+00
+# Kitaev S=1/2 model - ITE flow
+# D=6, tau=1.00000000E-02, h=0.00000000000000E+00
 # Iter		Energy			Coarse-grain steps
-0		0.505618924201904	5
+0		0.653922800908160	6

@@ -90,8 +90,12 @@ def create_loop_gas_operator(spin):
     """Returns loop gas (LG) operator Q_LG for spin=1/2 or spin=1 Kitaev model."""
 
     tau_tensor = np.zeros((2, 2, 2), dtype=complex)  # tau_tensor_{i j k}
-    # tau_tensor[0][0][0] = - 1j
-    tau_tensor[0][0][0] = 1
+
+    if spin == "1/2":
+        tau_tensor[0][0][0] = - 1j
+    if spin == "1":
+        tau_tensor[0][0][0] = 1
+
     tau_tensor[0][1][1] = tau_tensor[1][0][1] = tau_tensor[1][1][0] = 1
 
     sx, sy, sz, one = get_spin_operators(spin)
