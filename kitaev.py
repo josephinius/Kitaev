@@ -405,12 +405,8 @@ if model is "Heisenberg":
 # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
 # tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
 
-Q_LG = constants.create_loop_gas_operator(spin)
-
-# print(Q_LG)
-# print(tensor_a.shape)
-
 if model is "Kitaev":
+    Q_LG = constants.create_loop_gas_operator(spin)
     # tensor_a = np.einsum('s t i j k, t l m n->s i l j m k n', constants.Q_LG, tensor_a)
     # tensor_a = tensor_a.reshape((d, 2, 2, 2))
     tensor_a = apply_gas_operator(tensor_a, Q_LG)
@@ -475,7 +471,7 @@ energy = - 3 * energy / 2
 print('Energy of the initial state', energy, 'mag_x:', mag_x, 'num_of_iter', num_of_iter)
 """
 
-energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D)
+energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model)
 print('Energy of the initial state', - 3 * energy / 2, 'num_of_iter', num_of_iter)
 # print('Flux of the initial state', energy, 'num_of_iter', num_of_iter)
 
@@ -529,7 +525,8 @@ while tau >= tau_final and (j * refresh < 10100):
     print(lambdas_copy[1][:12])
     print(lambdas_copy[2][:12])
 
-    energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a_copy, tensor_b_copy, lambdas_copy, D)
+    energy, num_of_iter = \
+        honeycomb_expectation.coarse_graining_procedure(tensor_a_copy, tensor_b_copy, lambdas_copy, D, model)
     # energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D)
 
     energy = - 3 * energy / 2

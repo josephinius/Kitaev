@@ -552,7 +552,7 @@ def calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, flip_vertical=Fa
     return torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_cp, ten_fp) / norm
 
 
-def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
+def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model="Kitaev"):
 
     """
     Returns the converged energy given the quantum state (tensor_a, tensor_b) for the spin={1/2, 1} Kitaev model and
@@ -639,7 +639,11 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
     # dimp_ten_b = copy.deepcopy(double_impurity_tensors[0][1])
     # create_double_impurity(tensor_b, lambdas, constants.SX)
 
-    operator = 1j * sx
+    if model is "Heisenberg":
+        operator = (sx / 2, sy / 2, sz / 2)
+    if model is "Kitaev":
+        operator = 1j * sx
+
     dimp_ten_a = create_double_impurity(tensor_a, lambdas, operator)
     dimp_ten_b = create_double_impurity(tensor_b, lambdas, operator)
 
@@ -647,31 +651,30 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D):
 
     # norm = partition_function(*double_impurity_6ring_helper)
 
-    # calculation of the norm
-    ten_a = ten_c = ten_e = double_tensor_a
-    ten_b = ten_d = ten_f = double_tensor_b
-    norm = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+    if model is not "Heisenberg":
 
-    ten_a = ten_c = ten_e = double_tensor_a
-    ten_b = ten_d = ten_f = double_tensor_b
-    ten_a = dimp_ten_a
-    ten_b = dimp_ten_b
-    measurement = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
+        ten_a = ten_c = ten_e = double_tensor_a
+        ten_b = ten_d = ten_f = double_tensor_b
+        norm = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
 
-    # measurement1 = partition_function(*double_impurity_6ring)
-    print('norm', norm)
-    # print('measurement', measurement)
-    # print('flux', measurement / norm)
-    print('energy', 1.5 * measurement / norm)
+        ten_a = ten_c = ten_e = double_tensor_a
+        ten_b = ten_d = ten_f = double_tensor_b
+        ten_a = dimp_ten_a
+        ten_b = dimp_ten_b
+        measurement = partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f)
 
-    # impurity_plaquette = create_plaquette(*double_impurity_6ring)  # {x xx y yy z zz}
-    # measurement2 = np.einsum('x x y y z z->', impurity_plaquette)
-    # print('measurement12', measurement1)
+        # measurement1 = partition_function(*double_impurity_6ring)
+        print('norm', norm)
+        # print('measurement', measurement)
+        # print('flux', measurement / norm)
+        print('energy', 1.5 * measurement / norm)
 
-    # return measurement1 / norm, 0
-    # return measurement2 / norm, 0
-
-    # return measurement / norm, 0
+        # impurity_plaquette = create_plaquette(*double_impurity_6ring)  # {x xx y yy z zz}
+        # measurement2 = np.einsum('x x y y z z->', impurity_plaquette)
+        # print('measurement12', measurement1)
+        # return measurement1 / norm, 0
+        # return measurement2 / norm, 0
+        # return measurement / norm, 0
 
     energy = 1
     energy_mem = -1
