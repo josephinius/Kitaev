@@ -651,6 +651,8 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model="Kitaev"):
 
     # norm = partition_function(*double_impurity_6ring_helper)
 
+    ################################################################
+
     if model is not "Heisenberg":
 
         ten_a = ten_c = ten_e = double_tensor_a
@@ -676,22 +678,19 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model="Kitaev"):
         # return measurement2 / norm, 0
         # return measurement / norm, 0
 
+        energy_six_directions(double_tensor_a, double_tensor_b, double_impurity_tensors, num_of_iter=0)
+
+        # o = np.tensordot(dimp_ten_a, dimp_ten_b, axes=([0, 1, 2], [0, 1, 2]))
+        # o = np.tensordot(double_impurity_tensors[0][0], double_impurity_tensors[0][1], axes=([0, 1, 2], [0, 1, 2]))
+        # norm = np.tensordot(double_tensor_a, double_tensor_b, axes=([0, 1, 2], [0, 1, 2]))
+        # norm = partition_function(*double_impurity_6ring_helper)
+        # print('partition function', norm)
+
+    ################################################################
+
     energy = 1
     energy_mem = -1
     num_of_iter = 0
-
-    ################################################################
-
-    energy_six_directions(double_tensor_a, double_tensor_b, double_impurity_tensors, num_of_iter)
-
-    # o = np.tensordot(dimp_ten_a, dimp_ten_b, axes=([0, 1, 2], [0, 1, 2]))
-    # o = np.tensordot(double_impurity_tensors[0][0], double_impurity_tensors[0][1], axes=([0, 1, 2], [0, 1, 2]))
-    # norm = np.tensordot(double_tensor_a, double_tensor_b, axes=([0, 1, 2], [0, 1, 2]))
-    # norm = partition_function(*double_impurity_6ring_helper)
-    # print('partition function', norm)
-
-    ################################################################
-
     num_of_iter += 1
 
     # for _ in range(100):
