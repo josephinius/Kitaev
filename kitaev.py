@@ -311,25 +311,40 @@ def kitaev_spin_one_ite_operator(tau):
     return u_gate_x, u_gate_y, u_gate_z
 
 
-def dimer_gas_operator(phi):
-    """Returns dimer gas operator for spin=1 Kitaev model"""
-    spin = "1"
+def dimer_gas_operator(spin, phi):
+    """Returns dimer gas operator R for spin=1/2 or spin=1 Kitaev model."""
+
     zeta = np.zeros((2, 2, 2), dtype=complex)  # tau_tensor_{i j k}
-    zeta[0][0][0] = math.cos(phi)
-    zeta[1][0][0] = zeta[0][1][0] = zeta[0][0][1] = math.sin(phi)
-    # zeta[0][1][1] = zeta[1][0][1] = zeta[1][1][0] = math.sin(phi)
+    if spin == "1":
+        zeta[0][0][0] = math.cos(phi)
+        zeta[1][0][0] = zeta[0][1][0] = zeta[0][0][1] = math.sin(phi)
+        # zeta[0][1][1] = zeta[1][0][1] = zeta[1][1][0] = math.sin(phi)
+    elif spin == "1/2":
+        # zeta[0][0][0] = 1
+        # zeta[1][0][0] = zeta[0][1][0] = zeta[0][0][1] = phi
+        # Variational Ansatz:
+        zeta[0][0][0] = math.cos(phi)
+        zeta[1][0][0] = zeta[0][1][0] = zeta[0][0][1] = math.sin(phi)
+
     sx, sy, sz, one = constants.get_spin_operators(spin)
     d = one.shape[0]
     R = np.zeros((d, d, 2, 2, 2), dtype=complex)  # Q_LG_{s s' i j k}
+
+    p = None
+    if spin == "1":
+        p = 0
+    elif spin == "1/2":
+        p = 0
+
     for i in range(2):
         for j in range(2):
             for k in range(2):
                 temp = np.eye(d)
-                if i == 0:
+                if i == p:
                     temp = temp @ sx  # constants.UX
-                if j == 0:
+                if j == p:
                     temp = temp @ sy  # constants.UY
-                if k == 0:
+                if k == p:
                     temp = temp @ sz  # constants.UZ
                 for s in range(d):
                     for sp in range(d):
@@ -338,8 +353,6 @@ def dimer_gas_operator(phi):
 
 
 ########################################################################################################################
-
-# TODO: implement option for Heisenberg model
 
 model = "Kitaev"
 # model = "Heisenberg"
@@ -380,19 +393,19 @@ tensor_a = np.zeros((d, xi, xi, xi), dtype=complex)
 tensor_b = np.zeros((d, xi, xi, xi), dtype=complex)
 lambdas = [np.array([1., ], dtype=complex), np.array([1., ], dtype=complex), np.array([1., ], dtype=complex)]
 
-if model is "Kitaev":
-    if spin is "1":
+if model == "Kitaev":
+    if spin == "1":
         # Spin=1 Kitaev model polarized state
         for i, x in enumerate(constants.mag_state_s1_kitaev):
             tensor_a[i][0][0][0] = x
             tensor_b[i][0][0][0] = x
-    elif spin is "1/2":
+    elif spin == "1/2":
         tensor_a = np.ones((d, xi, xi, xi), dtype=complex)
         tensor_b = np.ones((d, xi, xi, xi), dtype=complex)
         tensor_a = prepare_magnetized_state(tensor_a, spin)
         tensor_b = prepare_magnetized_state(tensor_b, spin)
 
-if model is "Heisenberg":
+if model == "Heisenberg":
     tensor_a[0][0][0][0] = 1.
     tensor_a[1][0][0][0] = 1.
     tensor_b[0][0][0][0] = 1.
@@ -405,7 +418,8 @@ if model is "Heisenberg":
 # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
 # tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
 
-if model is "Kitaev":
+if model == "Kitaev":
+
     Q_LG = constants.create_loop_gas_operator(spin)
     # tensor_a = np.einsum('s t i j k, t l m n->s i l j m k n', constants.Q_LG, tensor_a)
     # tensor_a = tensor_a.reshape((d, 2, 2, 2))
@@ -416,33 +430,42 @@ if model is "Kitaev":
     # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
     # tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
 
-    """
     # String-Gas state
-    phi = math.pi * 0.275
-    R = dimer_gas_operator(phi)
-    tensor_a = apply_gas_operator(tensor_a, R)
-    tensor_b = apply_gas_operator(tensor_b, R)
-    # Note 1: Dimer gas operator R is probably not correct as it doesn't lead to expected GS energy results.
+
+    # Note 1: For spin=1 Kitaev model, the dimer-gas operator R is
+    # probably not correct as it doesn't lead to expected GS energy results.
     # Note 2: Moreover, we observe strong anisotropy in energy for above defined dimer gas operator.
+
+    phi1 = math.pi * 0.24
+    # phi1 = math.pi * 0.342
+    R1 = dimer_gas_operator(spin, phi1)
+    tensor_a = apply_gas_operator(tensor_a, R1)
+    tensor_b = apply_gas_operator(tensor_b, R1)
+
+    """
+    phi2 = math.pi * 0.176
+    R2 = dimer_gas_operator(spin, phi2)
+    tensor_a = apply_gas_operator(tensor_a, R2)
+    tensor_b = apply_gas_operator(tensor_b, R2)
     """
 
     """
     lambdas = [np.array([1., 1.]) / math.sqrt(2), 
                np.array([1., 1.]) / math.sqrt(2), 
                np.array([1., 1.]) / math.sqrt(2)]
-    """
 
     lambdas = [np.array([1., 1.], dtype=complex),
                np.array([1., 1.], dtype=complex),
                np.array([1., 1.], dtype=complex)]
-    """
+    
     lambdas = [np.ones((4,), dtype=complex) / 2, 
                np.ones((4,), dtype=complex) / 2, 
                np.ones((4,), dtype=complex) / 2]
-    lambdas = [np.ones((4,), dtype=complex), 
-               np.ones((4,), dtype=complex), 
-               np.ones((4,), dtype=complex)]
     """
+
+    lambdas = [np.ones((4,), dtype=complex),
+               np.ones((4,), dtype=complex),
+               np.ones((4,), dtype=complex)]
 
 # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
 # tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
@@ -490,7 +513,7 @@ energy_old = -1
 lambdas_memory = copy.deepcopy(lambdas)
 
 u_gates = None
-if model is "Kitaev" and spin is "1":
+if model == "Kitaev" and spin == "1":
         u_gates = [exp_ham.reshape(d, d, d, d) for exp_ham in kitaev_spin_one_ite_operator(tau)]  # analytic form
 else:
     # Heisenberg and spin=1/2 Kitaev

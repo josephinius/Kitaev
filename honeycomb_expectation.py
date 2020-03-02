@@ -72,8 +72,8 @@ def deformation(pair, dim_cut):
 
     # 3) SVD
     print("SVD... (honeycomb expectation)")
-    # x, ss, y = linalg.svd(pair, lapack_driver='gesdd')  # use 'gesvd' or 'gesdd'
-    x, ss, y = linalg.svd(pair, lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
+    x, ss, y = linalg.svd(pair, lapack_driver='gesdd')  # use 'gesvd' or 'gesdd'
+    # x, ss, y = linalg.svd(pair, lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
     # x, ss, y = randomized_svd(pair, n_components=120, n_iter=5, random_state=None)
     print("SVD done")
     # print('ss', ss)
@@ -639,9 +639,9 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model="Kitaev"):
     # dimp_ten_b = copy.deepcopy(double_impurity_tensors[0][1])
     # create_double_impurity(tensor_b, lambdas, constants.SX)
 
-    if model is "Heisenberg":
+    if model == "Heisenberg":
         operator = (sx / 2, sy / 2, sz / 2)
-    if model is "Kitaev":
+    if model == "Kitaev":
         operator = 1j * sx
 
     dimp_ten_a = create_double_impurity(tensor_a, lambdas, operator)
@@ -653,7 +653,7 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model="Kitaev"):
 
     ################################################################
 
-    if model is not "Heisenberg":
+    if model != "Heisenberg":
 
         ten_a = ten_c = ten_e = double_tensor_a
         ten_b = ten_d = ten_f = double_tensor_b
