@@ -318,8 +318,8 @@ def dimer_gas_operator(spin, phi):
     if spin == "1":
         zeta[0][0][0] = math.cos(phi)
         zeta[1][0][0] = zeta[0][1][0] = zeta[0][0][1] = math.sin(phi)
-        # zeta[0][1][1] = zeta[1][0][1] = zeta[1][1][0] = math.sin(phi)
     elif spin == "1/2":
+        # Dimer Gas:
         # zeta[0][0][0] = 1
         # zeta[1][0][0] = zeta[0][1][0] = zeta[0][0][1] = phi
         # Variational Ansatz:
@@ -332,7 +332,7 @@ def dimer_gas_operator(spin, phi):
 
     p = None
     if spin == "1":
-        p = 0
+        p = 1
     elif spin == "1/2":
         p = 0
 
@@ -341,11 +341,11 @@ def dimer_gas_operator(spin, phi):
             for k in range(2):
                 temp = np.eye(d)
                 if i == p:
-                    temp = temp @ sx  # constants.UX
+                    temp = temp @ sx
                 if j == p:
-                    temp = temp @ sy  # constants.UY
+                    temp = temp @ sy
                 if k == p:
-                    temp = temp @ sz  # constants.UZ
+                    temp = temp @ sz
                 for s in range(d):
                     for sp in range(d):
                         R[s][sp][i][j][k] = zeta[i][j][k] * temp[s][sp]
@@ -357,11 +357,11 @@ def dimer_gas_operator(spin, phi):
 model = "Kitaev"
 # model = "Heisenberg"
 
-spin = "1/2"  # implemented options so far: spin = "1", "1/2" for Kitaev model, spin = "1/2" for Heisenberg model
+spin = "1"  # implemented options so far: spin = "1", "1/2" for Kitaev model, spin = "1/2" for Heisenberg model
 k = 1.
 h = 0.E-14
 # print('field', h)
-D = 8  # max virtual (bond) dimension
+D = 4  # max virtual (bond) dimension
 
 ########################################################################################################################
 
@@ -436,7 +436,8 @@ if model == "Kitaev":
     # probably not correct as it doesn't lead to expected GS energy results.
     # Note 2: Moreover, we observe strong anisotropy in energy for above defined dimer gas operator.
 
-    phi1 = math.pi * 0.24
+    phi1 = math.pi * 0.32
+    # phi1 = math.pi * 0.24
     # phi1 = math.pi * 0.342
     R1 = dimer_gas_operator(spin, phi1)
     tensor_a = apply_gas_operator(tensor_a, R1)
@@ -504,7 +505,7 @@ with open(file_name, 'w') as f:
     f.write('# Iter\t\tEnergy\t\t\tCoarse-grain steps\n')
 f = open(file_name, 'a')
 # f.write('%d\t\t%.15f\t%.15f\t%d\n' % (0, np.real(energy), np.real(mag_x), num_of_iter))
-f.write('%d\t\t%.15f\t%d\n' % (0, 3 * np.real(energy) / 2, num_of_iter))
+f.write('%d\t\t%.15f\t%d\n' % (0, - 3 * np.real(energy) / 2, num_of_iter))
 # f.write('%d\t\t%.15f\t%d\n' % (0, np.real(energy), num_of_iter))
 f.close()
 
@@ -514,7 +515,7 @@ lambdas_memory = copy.deepcopy(lambdas)
 
 u_gates = None
 if model == "Kitaev" and spin == "1":
-        u_gates = [exp_ham.reshape(d, d, d, d) for exp_ham in kitaev_spin_one_ite_operator(tau)]  # analytic form
+    u_gates = [exp_ham.reshape(d, d, d, d) for exp_ham in kitaev_spin_one_ite_operator(tau)]  # analytic form
 else:
     # Heisenberg and spin=1/2 Kitaev
     H = construct_hamiltonian(h, spin, k)
@@ -523,7 +524,7 @@ else:
 
 j = 0  # ITE-step index
 
-while tau >= tau_final and (j * refresh < 10100):
+while tau >= tau_final and (j * refresh < 2100):
 
     for i in tqdm(range(refresh)):
         tensor_a, tensor_b, lambdas = update_step(tensor_a, tensor_b, lambdas, u_gates)
