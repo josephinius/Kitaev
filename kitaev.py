@@ -396,7 +396,7 @@ spin = "1"  # implemented options so far: spin = "1", "1/2" for Kitaev model, sp
 k = 1.
 h = 0.E-14
 # print('field', h)
-D = 4  # max virtual (bond) dimension
+D = 8  # max virtual (bond) dimension
 
 ########################################################################################################################
 
@@ -471,19 +471,19 @@ if model == "Kitaev":
     # probably not correct as it doesn't lead to expected GS energy results.
     # Note 2: Moreover, we observe strong anisotropy in energy for above defined dimer gas operator.
 
-    """
-    phi1 = math.pi * 0.32
+    phi1 = math.pi * 0.33
+    # phi1 = math.pi * 0.32
     # phi1 = math.pi * 0.24
     # phi1 = math.pi * 0.342
     R1 = dimer_gas_operator(spin, phi1)
     tensor_a = apply_gas_operator(tensor_a, R1)
     tensor_b = apply_gas_operator(tensor_b, R1)
 
-    phi2 = math.pi * 0.176
+    phi2 = math.pi * 0.22
+    # phi2 = math.pi * 0.176
     R2 = dimer_gas_operator(spin, phi2)
     tensor_a = apply_gas_operator(tensor_a, R2)
     tensor_b = apply_gas_operator(tensor_b, R2)
-    """
 
     """
     lambdas = [np.array([1., 1.]) / math.sqrt(2), 
@@ -499,11 +499,11 @@ if model == "Kitaev":
                np.ones((4,), dtype=complex) / 2]
     """
 
-    lambdas = [np.ones((2,), dtype=complex),
-               np.ones((2,), dtype=complex),
-               np.ones((2,), dtype=complex)]
+    lambdas = [np.ones((8,), dtype=complex),
+               np.ones((8,), dtype=complex),
+               np.ones((8,), dtype=complex)]
 
-    calculate_dimer_gas_profile(tensor_a, tensor_b)
+    # calculate_dimer_gas_profile(tensor_a, tensor_b)
 
 
 # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
