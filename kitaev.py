@@ -352,6 +352,41 @@ def dimer_gas_operator(spin, phi):
     return R
 
 
+def calculate_dimer_gas_profile(tensor_a, tensor_b, file_name='dimer_gas_profile.txt'):
+
+    d = tensor_a.shape[0]  # physical dimension
+    spin = None
+    if d == 2:
+        spin = "1/2"
+    if d == 3:
+        spin = "1"
+
+    dim = tensor_a.shape[1] * 2  # virtual (bond) dimension
+
+    lambdas = [np.ones((dim,), dtype=complex),
+               np.ones((dim,), dtype=complex),
+               np.ones((dim,), dtype=complex)]
+
+    with open(file_name, 'w') as f:
+        f.write('# Kitaev S=%s model - 1st order String Gas\n' % spin)
+        f.write('# D=%d\n' % dim)
+        f.write('# phi/pi\t\tEnergy\t\t\tCoarse-grain steps\n')
+
+    for z in np.linspace(0, 0.5, num=200, endpoint=False):
+        R = dimer_gas_operator(spin, z * math.pi)
+        dimer_tensor_a = apply_gas_operator(tensor_a, R)
+        dimer_tensor_b = apply_gas_operator(tensor_b, R)
+
+        energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(
+            dimer_tensor_a, dimer_tensor_b, lambdas, D, model)
+        print('Energy', - 3 * energy / 2, 'num_of_iter', num_of_iter)
+        f = open(file_name, 'a')
+        # f.write('%d\t\t%.15f\t%.15f\t%d\n' % (0, np.real(energy), np.real(mag_x), num_of_iter))
+        f.write('%.15f\t%.15f\t%d\n' % (z, - 3 * np.real(energy) / 2, num_of_iter))
+        # f.write('%d\t\t%.15f\t%d\n' % (0, np.real(energy), num_of_iter))
+        f.close()
+
+
 ########################################################################################################################
 
 model = "Kitaev"
@@ -436,6 +471,7 @@ if model == "Kitaev":
     # probably not correct as it doesn't lead to expected GS energy results.
     # Note 2: Moreover, we observe strong anisotropy in energy for above defined dimer gas operator.
 
+    """
     phi1 = math.pi * 0.32
     # phi1 = math.pi * 0.24
     # phi1 = math.pi * 0.342
@@ -443,7 +479,6 @@ if model == "Kitaev":
     tensor_a = apply_gas_operator(tensor_a, R1)
     tensor_b = apply_gas_operator(tensor_b, R1)
 
-    """
     phi2 = math.pi * 0.176
     R2 = dimer_gas_operator(spin, phi2)
     tensor_a = apply_gas_operator(tensor_a, R2)
@@ -464,9 +499,12 @@ if model == "Kitaev":
                np.ones((4,), dtype=complex) / 2]
     """
 
-    lambdas = [np.ones((4,), dtype=complex),
-               np.ones((4,), dtype=complex),
-               np.ones((4,), dtype=complex)]
+    lambdas = [np.ones((2,), dtype=complex),
+               np.ones((2,), dtype=complex),
+               np.ones((2,), dtype=complex)]
+
+    calculate_dimer_gas_profile(tensor_a, tensor_b)
+
 
 # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
 # tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))

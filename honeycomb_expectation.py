@@ -72,8 +72,8 @@ def deformation(pair, dim_cut):
 
     # 3) SVD
     print("SVD... (honeycomb expectation)")
-    x, ss, y = linalg.svd(pair, lapack_driver='gesdd')  # use 'gesvd' or 'gesdd'
-    # x, ss, y = linalg.svd(pair, lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
+    # x, ss, y = linalg.svd(pair, lapack_driver='gesdd')  # use 'gesvd' or 'gesdd'
+    x, ss, y = linalg.svd(pair, lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
     # x, ss, y = randomized_svd(pair, n_components=120, n_iter=5, random_state=None)
     print("SVD done")
     # print('ss', ss)
@@ -694,7 +694,7 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model="Kitaev"):
     num_of_iter += 1
 
     # for _ in range(100):
-    while abs(energy - energy_mem) > 1.E-6:
+    while abs(energy - energy_mem) > 1.E-14:
 
         # print(double_tensor_a.shape)
         # print(double_tensor_b.shape)
