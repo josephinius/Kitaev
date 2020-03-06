@@ -9,14 +9,6 @@ import copy
 EPS = constants.EPS
 
 
-def tensor_rotate(ten):  # TODO: unify with kitaev.py
-    return np.transpose(ten, (0, 2, 3, 1))
-
-
-def lambdas_rotate(lam):  # TODO: unify with kitaev.py
-    return lam[1:] + [lam[0]]
-
-
 def create_double_tensor(ten, lambdas):
     ten = ten * np.sqrt(lambdas[0])[None, :, None, None]
     ten = ten * np.sqrt(lambdas[1])[None, None, :, None]
@@ -589,13 +581,13 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model="Kitaev"):
 
     sx, sy, sz, _ = constants.get_spin_operators(spin)
 
-    double_impurity_tensors = []  # for calculating the energy
+    double_impurity_tensors = []  # used for calculating energy
     for op in (sx, sy, sz):
         a = create_double_impurity(tensor_a, lambdas, op)
         b = create_double_impurity(tensor_b, lambdas, op)
-        # tensor_a = tensor_rotate(tensor_a)
-        # tensor_b = tensor_rotate(tensor_b)
-        # lambdas = lambdas_rotate(lambdas)
+        # tensor_a = np.transpose(tensor_a, (0, 2, 3, 1))
+        # tensor_b = np.transpose(tensor_b, (0, 2, 3, 1))
+        # lambdas = lambdas[1:] + [lambdas[0]]
         double_impurity_tensors.append([a, b])
 
     # dimp_ten_a_mag = copy.deepcopy(double_impurity_tensors[0][0])
