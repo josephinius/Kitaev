@@ -14,6 +14,7 @@ EPS = constants.EPS
 
 def construct_kitaev_hamiltonian(h, spin, k=1.):
     """Returns list of two-site Hamiltonian in [x, y, z]-direction for Kitaev model"""
+
     sx, sy, sz, one = constants.get_spin_operators(spin)
     hamiltonian = - k * np.array([np.kron(sx, sx), np.kron(sy, sy), np.kron(sz, sz)])
     hamiltonian -= h * (np.kron(sx, one) + np.kron(one, sx) +
@@ -30,6 +31,7 @@ def construct_heisenberg_hamiltonian(h, spin, k=1.):
     in order to achieve compatibility with the rest of the code.
 
     """
+
     sx, sy, sz, one = constants.get_spin_operators(spin)
     hamiltonian = k * (np.kron(sx, sx) + np.kron(sy, sy) + np.kron(sz, sz))
     hamiltonian += h * (np.kron(sz, one) + np.kron(one, sz)) / 3
@@ -44,6 +46,7 @@ def construct_ising_hamiltonian(h, spin, k=1.):
     in order to achieve compatibility with the rest of the code.
 
     """
+
     sx, sy, sz, one = constants.get_spin_operators(spin)
     hamiltonian = - k * np.kron(sx, sx) - h * (np.kron(sz, one) + np.kron(one, sz)) / 2
     return np.array([hamiltonian, hamiltonian, hamiltonian]) / 2
@@ -51,12 +54,14 @@ def construct_ising_hamiltonian(h, spin, k=1.):
 
 def construct_ite_operator(tau, hamiltonian):
     """Returns imaginary-time evolution (ITE) operator."""
+
     # return constants.exponentiation(- tau, hamiltonian)  # It seems that this is numerically less accurate.
     return linalg.expm(- tau * hamiltonian)
 
 
 def apply_gas_operator(tensor, gas_operator):
     """Returns local tensor with loop/string gas operator attached."""
+
     d, dx, dy, dz = tensor.shape
     tensor = np.einsum('s t i j k, t l m n->s i l j m k n', gas_operator, tensor)
     return tensor.reshape((d, 2 * dx, 2 * dy, 2 * dz))
@@ -64,33 +69,39 @@ def apply_gas_operator(tensor, gas_operator):
 
 def calculate_norm(lam):
     """Returns L2 norm for 1-dimensional (real) numpy array."""
+
     norm = np.tensordot(lam, lam, axes=(0, 0))
     return math.sqrt(norm)
 
 
 def complex_inner_product(ten):
     """Returns complex inner product of flattened tensor."""
+
     ten = ten.reshape(-1)
     return np.tensordot(ten, np.conj(ten), axes=(0, 0))
 
 
 def save_array(np_array, file_name):
     """Saves numpy array into file; returns nothing."""
+
     np.save(file_name, np_array)
 
 
 def tensor_rotate(ten):
     """Returns tensor with virtual indices rotated anti-clock wise."""
+
     return np.transpose(ten, (0, 2, 3, 1))
 
 
 def lambdas_rotate(lam):
     """Returns lambdas rotated anti-clock wise."""
+
     return lam[1:] + [lam[0]]
 
 
 def abs_list_difference(a1, a2):
     """Returns absolute difference between two 1-dimensional arrays."""
+
     if len(a1) > len(a2):
         return abs_list_difference(a2, a1)
     n = len(a1)
@@ -130,13 +141,15 @@ def pair_contraction(ten_a, ten_b, lambdas):
 
 def apply_gate(u_gate, pair):
     """Returns a product of two-site gate and tensor pair."""
+
     # theta_{i j y1 z1 y2 z2} = u_gate_{i j k l} * pair_{k y1 z1 l y2 z2}
     theta = np.tensordot(u_gate, pair, axes=([2, 3], [0, 3]))
     return np.transpose(theta, (0, 2, 3, 1, 4, 5))  # theta_{i y1 z1 j y2 z2}
 
 
 def tensor_pair_update(ten_a, ten_b, theta, lambdas, normalize=True):
-    """Returns new tensor pair and corresponding (optionally normalized) singular values."""
+    """Returns new tensor pair and corresponding (by default normalized) singular values."""
+
     da, db = ten_a.shape, ten_b.shape
     theta = theta.reshape((d * da[2] * da[3], d * db[2] * db[3]))  # theta_{(i y1 z1), (j y2 z2)}
 
@@ -194,8 +207,7 @@ def update_step(ten_a, ten_b, lambdas, u_gates=None):
             theta = apply_gate(u_gates[i], pair)
         else:
             theta = pair
-        normalize = u_gates is not None
-        ten_a, ten_b, lambdas[0] = tensor_pair_update(ten_a, ten_b, theta, lambdas, normalize)
+        ten_a, ten_b, lambdas[0] = tensor_pair_update(ten_a, ten_b, theta, lambdas, normalize=u_gates is not None)
         # print('lam updated', lambdas)
         # print('ten_a.shape', ten_a.shape)
         # print('ten_b.shape', ten_b.shape)
@@ -218,6 +230,7 @@ def update_step(ten_a, ten_b, lambdas, u_gates=None):
 
 def psi_sigma_psi(psi, sigma):
     """Returns <psi|sigma|psi>."""
+
     temp = np.tensordot(sigma, psi.reshape(-1), axes=(1, 0))
     return np.tensordot(np.conj(psi.reshape(-1)), temp, axes=(0, 0))
 
@@ -227,6 +240,7 @@ def psi_zero_test(psi, spin):
 
     Note: For magnetized state, we have <psi|(sx + sy + sz)|psi> = 1/sqrt(3).
     """
+
     sx, sy, sz, _ = constants.get_spin_operators(spin)
     sigmas = sx, sy, sz
     return sum(abs(psi_sigma_psi(psi, s) - 1 / math.sqrt(3)) for s in sigmas)
@@ -312,7 +326,7 @@ def kitaev_spin_one_ite_operator(tau):
 
 
 def dimer_gas_operator(spin, phi):
-    """Returns dimer gas operator R for spin=1/2 or spin=1 Kitaev model."""
+    """Returns dimer gas operator (or variational ansatz) R for spin=1/2 or spin=1 Kitaev model."""
 
     zeta = np.zeros((2, 2, 2), dtype=complex)  # tau_tensor_{i j k}
     if spin == "1":
@@ -353,6 +367,7 @@ def dimer_gas_operator(spin, phi):
 
 
 def calculate_dimer_gas_profile(tensor_a, tensor_b, file_name='dimer_gas_profile.txt'):
+    """Calculates energy for dimer gas state for values of variational parameter in fixed interval."""
 
     d = tensor_a.shape[0]  # physical dimension
     spin = None
@@ -465,11 +480,18 @@ if model == "Kitaev":
     # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
     # tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
 
-    # String-Gas state
+    """
+    lambdas = [np.array([1., 1.]) / math.sqrt(2),
+               np.array([1., 1.]) / math.sqrt(2),
+               np.array([1., 1.]) / math.sqrt(2)]
+    """
 
-    # Note 1: For spin=1 Kitaev model, the dimer-gas operator R is
-    # probably not correct as it doesn't lead to expected GS energy results.
-    # Note 2: Moreover, we observe strong anisotropy in energy for above defined dimer gas operator.
+    lambdas = [np.array([1., 1.], dtype=complex),
+               np.array([1., 1.], dtype=complex),
+               np.array([1., 1.], dtype=complex)]
+
+    """
+    # String-Gas state
 
     phi1 = math.pi * 0.33
     # phi1 = math.pi * 0.32
@@ -485,26 +507,18 @@ if model == "Kitaev":
     tensor_a = apply_gas_operator(tensor_a, R2)
     tensor_b = apply_gas_operator(tensor_b, R2)
 
-    """
-    lambdas = [np.array([1., 1.]) / math.sqrt(2), 
-               np.array([1., 1.]) / math.sqrt(2), 
-               np.array([1., 1.]) / math.sqrt(2)]
-
-    lambdas = [np.array([1., 1.], dtype=complex),
-               np.array([1., 1.], dtype=complex),
-               np.array([1., 1.], dtype=complex)]
-    
+    # For the case of 1st order dimer gas state:
     lambdas = [np.ones((4,), dtype=complex) / 2, 
                np.ones((4,), dtype=complex) / 2, 
                np.ones((4,), dtype=complex) / 2]
-    """
 
+    # For the case of 2nd order dimer gas state:
     lambdas = [np.ones((8,), dtype=complex),
                np.ones((8,), dtype=complex),
                np.ones((8,), dtype=complex)]
 
     # calculate_dimer_gas_profile(tensor_a, tensor_b)
-
+    """
 
 # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
 # tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
@@ -607,8 +621,8 @@ while tau >= tau_final and (j * refresh < 2100):
     s3 = abs_list_difference(lambdas[2], lambdas_memory[2])
     lambdas_memory = copy.deepcopy(lambdas)
     print(s1 + s2 + s3)
-    # if s1 < 1.E-11 and s2 < 1.E-11 and s3 < 1.E-11:
-    if s1 < 1.E-6 and s2 < 1.E-6 and s3 < 1.E-6:
+    # if s1 < 1.E-6 and s2 < 1.E-6 and s3 < 1.E-6:
+    if s1 < 1.E-11 and s2 < 1.E-11 and s3 < 1.E-11:
         print('lambdas converged')
         # print('decreasing tau')
         # tau /= 3
@@ -652,5 +666,3 @@ while abs(energy - energy_old) >= 1.E-10 and (j * refresh < 2000):
 
     j += 1
 """
-
-# TODO: check only the convergence of lambdas (maybe TRG is too inaccurate)
