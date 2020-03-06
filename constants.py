@@ -52,7 +52,6 @@ UZ = np.array([
     [0, 0, -1.]
 ], dtype=complex)
 
-# ID3 = np.eye(3)
 
 # Spin=1 Kitaev model - magnetized (polarized) state
 mag_state_s1_kitaev = (- 1j * (2 + math.sqrt(3)), (1 - 1j) * (math.sqrt(2) + math.sqrt(6)) / 2, 1)
@@ -75,10 +74,10 @@ sz = np.array([
     [0, -1]
 ], dtype=complex)
 
-# id2 = np.eye(2)
-
 
 def get_spin_operators(spin):
+    """Returns tuple of 3 spin operators and a unit matrix for given value of spin."""
+
     if spin == "1/2":
         return sx, sy, sz, np.eye(2)
     elif spin == "1":
@@ -133,6 +132,7 @@ def exponentiation(alpha, s):
 
     Note: This method of matrix exponentiation is not numerically accurate and is used for debugging purposes only.
     """
+
     w, v = linalg.eigh(s)
     # w, v = linalg.eig(s)
     d = s.shape[0]
