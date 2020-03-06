@@ -301,6 +301,8 @@ def update_6ring(deformed_12ring, deformed_tensors):
 
 def energy_six_directions(double_tensor_a, double_tensor_b, double_impurity_tensors, num_of_iter):
 
+    # TODO: clean/simplify
+
     ten_a = ten_c = ten_e = double_tensor_a
     ten_b = ten_d = ten_f = double_tensor_b
     ten_a = double_impurity_tensors[0][0]  # dimp_ten_a
@@ -545,7 +547,6 @@ def calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, flip_vertical=Fa
 
 
 def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model="Kitaev"):
-
     """
     Returns the converged energy given the quantum state (tensor_a, tensor_b) for the spin={1/2, 1} Kitaev model and
     prints log of the convergence wrt iterative steps of coarse-graining.
