@@ -10,38 +10,46 @@ EPS = constants.EPS
 
 
 def create_double_tensor(ten, lambdas):
+    """Creates and returns double tensor for given tensor ten and singular values lambdas."""
+
     ten = ten * np.sqrt(lambdas[0])[None, :, None, None]
     ten = ten * np.sqrt(lambdas[1])[None, None, :, None]
     ten = ten * np.sqrt(lambdas[2])[None, None, None, :]
-
     double_ten = np.einsum('m x y z, m p q r->x p y q z r', ten, np.conj(ten))
-
     dx, dy, dz = ten.shape[1:]
     return double_ten.reshape((dx * dx, dy * dy, dz * dz))
 
 
-def deform_and_renorm_double_tensor(dten_a, dten_b, dim_cut):
+def contract_and_deform_double_tensor(dten_a, dten_b, dim_cut):
+    """Returns deformed tensors. Deformed tensors are created in two steps:
 
-    """
-       z1          y2
-        \         /
-         \___x___/  T_b
-    T_a  /       \
-        /         \
-       y1         z2
+    (1) Contraction of original tensors (i. e., creating pair)
+    (2) Deformation and splitting (by SVD) of pair
 
     """
 
-    # print("pair construction...")
+    """
+    Contraction:
+
+         z1          y2
+          \         /
+           \___x___/  T_b
+      T_a  /       \
+          /         \
+         y1         z2
+
+    """
+
     pair = np.tensordot(dten_a, dten_b, axes=(0, 0))  # pair_{y1 z1 y2 z2} = dten_a_{x y1 z1} * dten_b_{x y2 z2}
-
     return deformation(pair, dim_cut)
 
 
 def deformation(pair, dim_cut):
-    # 2) deformation
+    """Returns deformed tensors given pair of contracted tensors."""
 
     """
+    Deformation:
+
        z1    y2
         \   /
          \ /
@@ -52,9 +60,6 @@ def deformation(pair, dim_cut):
        y1   z2
 
     """
-
-    # print('in deformation...')
-    # print(pair.shape)
 
     # pair = np.transpose(pair, (2, 1, 0, 3))  # pair_{y2 z1 y1 z2}
     pair = np.transpose(pair, (1, 2, 3, 0))  # pair_{z1 y2 z2 y1}
@@ -82,7 +87,6 @@ def deformation(pair, dim_cut):
 
     dim_new = len(lambda_new)
     lambda_new = np.array(lambda_new)
-    # lambda_new = lambda_new / calculate_norm(lambda_new)
 
     # print('lambda_new', lambda_new)
 
@@ -103,6 +107,11 @@ def deformation(pair, dim_cut):
 
 
 def create_deformed_tensors(double_tensor_a, double_tensor_b, dim_cut):
+    """Returns deformed tensors for all three directions arranged as list
+
+    deformed_tensors = [(S^x_a, S^x_b), (S^y_a, S^y_b), (S^z_a, S^z_b)]
+    """
+
     deformed_tensors = [None] * 3
 
     assert type(double_tensor_a) == type(double_tensor_b)
@@ -114,13 +123,13 @@ def create_deformed_tensors(double_tensor_a, double_tensor_b, dim_cut):
         double_tensor_b = list(double_tensor_b)
 
         for i in range(3):
-            deformed_tensors[i] = deform_and_renorm_double_tensor(double_tensor_a[i], double_tensor_b[i], dim_cut)
+            deformed_tensors[i] = contract_and_deform_double_tensor(double_tensor_a[i], double_tensor_b[i], dim_cut)
             for j in range(3):
                 double_tensor_a[j] = np.transpose(double_tensor_a[j], (1, 2, 0))
                 double_tensor_b[j] = np.transpose(double_tensor_b[j], (1, 2, 0))
     else:
         for i in range(3):
-            deformed_tensors[i] = deform_and_renorm_double_tensor(double_tensor_a, double_tensor_b, dim_cut)
+            deformed_tensors[i] = contract_and_deform_double_tensor(double_tensor_a, double_tensor_b, dim_cut)
             double_tensor_a = np.transpose(double_tensor_a, (1, 2, 0))
             double_tensor_b = np.transpose(double_tensor_b, (1, 2, 0))
 
@@ -188,6 +197,7 @@ def create_plaquette(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f):
 
 
 def create_double_impurity(ten, lambdas, operator):
+    """Creates and returns double impurity tensor for given tensor ten, singular values lambdas, and operator."""
 
     """
     heisenberg = - np.kron(sx, sx) / 2 +
@@ -223,13 +233,18 @@ def create_double_impurity(ten, lambdas, operator):
     return result
 
 
-def deform_and_renorm_impurity(dten_a, dten_b, dim_cut):
-    # print("in deform_and_renorm_impurity")
+def contract_and_deform_impurity(dten_a, dten_b, dim_cut):
+    """Returns deformed impurity tensors. Deformed impurity tensors are created in two steps:
+
+    (1) Contraction of original tensors (i. e., creating pair)
+    (2) Deformation and splitting (by SVD) of pair
+
+    """
+
     assert type(dten_a) == type(dten_b)
     # pair_{y1 z1 y2 z2} = dten_a_{x y1 z1} * dten_b_{x y2 z2}
     if isinstance(dten_a, list):
-        print('isinstance list')
-        # exit()
+        # print('isinstance list')
         assert len(dten_a) == len(dten_b) == 3
         pair = functools.reduce(lambda x, y: x + y, (np.tensordot(a, b, axes=(0, 0)) for a, b in zip(dten_a, dten_b)))
     else:
@@ -255,27 +270,27 @@ def create_deformed_12ring(double_impurity_6ring, double_tensor_a, double_tensor
 
     # deform_and_renorm_double_tensor = deform_and_renorm_impurity
 
-    a, ap, _ = deform_and_renorm_double_tensor(*map(rot_z, (A, double_tensor_b)), dim_cut=ring_dim_cut)
+    a, ap, _ = contract_and_deform_double_tensor(*map(rot_z, (A, double_tensor_b)), dim_cut=ring_dim_cut)
     # result.extend(list(map(rot_neg_z, (a, ap))))
     result.extend(list(map(rot_z, (a, ap))))
 
-    b, bp, _ = deform_and_renorm_double_tensor(*map(rot_y, (double_tensor_a, B)), dim_cut=ring_dim_cut)
+    b, bp, _ = contract_and_deform_double_tensor(*map(rot_y, (double_tensor_a, B)), dim_cut=ring_dim_cut)
     # result.extend(list(map(rot_neg_y, (b, bp))))
     result.extend(list(map(rot_y, (b, bp))))
 
-    c, cp, _ = deform_and_renorm_double_tensor(*map(rot_x, (C, double_tensor_b)), dim_cut=ring_dim_cut)
+    c, cp, _ = contract_and_deform_double_tensor(*map(rot_x, (C, double_tensor_b)), dim_cut=ring_dim_cut)
     # result.extend(list(map(rot_neg_x, (c, cp))))
     result.extend(list(map(rot_x, (c, cp))))
 
-    d, dp, _ = deform_and_renorm_double_tensor(*map(rot_z, (double_tensor_a, D)), dim_cut=ring_dim_cut)
+    d, dp, _ = contract_and_deform_double_tensor(*map(rot_z, (double_tensor_a, D)), dim_cut=ring_dim_cut)
     # result.extend(list(map(rot_neg_z, (d, dp))))
     result.extend(list(map(rot_z, (d, dp))))
 
-    e, ep, _ = deform_and_renorm_double_tensor(*map(rot_y, (E, double_tensor_b)), dim_cut=ring_dim_cut)
+    e, ep, _ = contract_and_deform_double_tensor(*map(rot_y, (E, double_tensor_b)), dim_cut=ring_dim_cut)
     # result.extend(list(map(rot_neg_y, (e, ep))))
     result.extend(list(map(rot_y, (e, ep))))
 
-    f, fp, _ = deform_and_renorm_double_tensor(*map(rot_x, (double_tensor_a, F)), dim_cut=ring_dim_cut)
+    f, fp, _ = contract_and_deform_double_tensor(*map(rot_x, (double_tensor_a, F)), dim_cut=ring_dim_cut)
     # result.extend(list(map(rot_neg_x, (f, fp))))
     result.extend(list(map(rot_x, (f, fp))))
 
