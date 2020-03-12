@@ -561,6 +561,36 @@ def calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, flip_vertical=Fa
     return torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_cp, ten_fp) / norm
 
 
+def export_to_ctmrg(ten_a, ten_b, lam):
+
+    _, _, dy, dz = ten_a.shape
+    assert dy, dz == ten_b.shape[2:]
+
+    a = create_double_tensor(ten_a, lam)
+    b = create_double_tensor(ten_b, lam)
+
+    w = np.tensordot(a, b, axes=(0, 0))  # w_{i-y1, j-z1, k-y2, l-z2} = a_{x y1 z1} * b_{x y2 z2}
+
+    c1 = w.reshape((dy, dy, dz * dz, dy * dy, dz, dz))
+    c1 = np.einsum('i i j k l l->j k', c1)
+    c2 = w.reshape((dy, dy, dz, dz, dy * dy, dz * dz))
+    c2 = np.einsum('i i j j k l->k l', c2)
+    c3 = w.reshape((dy * dy, dz, dz, dy, dy, dz * dz))
+    c3 = np.einsum('i j j k k l->l i', c3)
+    c4 = w.reshape((dy * dy, dz * dz, dy, dy, dz, dz))
+    c4 = np.einsum('i j k k l l->i j', c4)
+
+    t1 = np.einsum('i i j k l->j k l', w.reshape((dy, dy, dz * dz, dy * dy, dz * dz)))
+    t2 = np.einsum('i j j k l->k l i', w.reshape((dy * dy, dz, dz, dy * dy, dz * dz)))
+    t3 = np.einsum('i j k k l->l i j', w.reshape((dy * dy, dz * dz, dy, dy, dz * dz)))
+    t4 = np.einsum('i j k l l->i j k', w.reshape((dy * dy, dz * dz, dy * dy, dz, dz)))
+
+    corners = (c1, c2, c3, c4)
+    transfer_matrices = (t1, t2, t3, t4)
+
+    return w, corners, transfer_matrices
+
+
 def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model="Kitaev"):
     """
     Returns the converged energy given the quantum state (tensor_a, tensor_b) for the spin={1/2, 1} Kitaev model and
