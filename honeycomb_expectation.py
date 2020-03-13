@@ -561,24 +561,6 @@ def calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, flip_vertical=Fa
     return torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_cp, ten_fp) / norm
 
 
-def init_weight_impurity_ctmrg(ten_a, ten_b, lam, model):
-    d = ten_a.shape[0]
-    spin = None
-    if d == 2:
-        spin = "1/2"
-    if d == 3:
-        spin = "1"
-    sx, sy, sz, _ = constants.get_spin_operators(spin)
-    if model == "Heisenberg":
-        op = (sx / 2, sy / 2, sz / 2)
-    if model == "Kitaev":
-        op = 1j * sx
-    a_imp = create_double_impurity(ten_a, lam, op)
-    b_imp = create_double_impurity(ten_b, lam, op)
-    w_imp = np.tensordot(a_imp, b_imp, axes=(0, 0))
-    return w_imp
-
-
 def init_ctm_ctmrg(ten_a, ten_b, lam):
 
     assert ten_a.shape == ten_b.shape
@@ -608,6 +590,24 @@ def init_ctm_ctmrg(ten_a, ten_b, lam):
     transfer_matrices = (t1, t2, t3, t4)
 
     return w, corners, transfer_matrices
+
+
+def init_weight_impurity_ctmrg(ten_a, ten_b, lam, model):
+    d = ten_a.shape[0]
+    spin = None
+    if d == 2:
+        spin = "1/2"
+    if d == 3:
+        spin = "1"
+    sx, sy, sz, _ = constants.get_spin_operators(spin)
+    if model == "Heisenberg":
+        op = (sx / 2, sy / 2, sz / 2)
+    if model == "Kitaev":
+        op = 1j * sx
+    a_imp = create_double_impurity(ten_a, lam, op)
+    b_imp = create_double_impurity(ten_b, lam, op)
+    w_imp = np.tensordot(a_imp, b_imp, axes=(0, 0))
+    return w_imp
 
 
 def export_to_ctmrg(ten_a, ten_b, lam, model):
