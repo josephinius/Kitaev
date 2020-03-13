@@ -7,6 +7,7 @@ import honeycomb_expectation
 # import time
 # import pickle
 from tqdm import tqdm
+import ctmrg
 
 
 EPS = constants.EPS
@@ -407,11 +408,11 @@ def calculate_dimer_gas_profile(tensor_a, tensor_b, file_name='dimer_gas_profile
 model = "Kitaev"
 # model = "Heisenberg"
 
-spin = "1"  # implemented options so far: spin = "1", "1/2" for Kitaev model, spin = "1/2" for Heisenberg model
+spin = "1/2"  # implemented options so far: spin = "1", "1/2" for Kitaev model, spin = "1/2" for Heisenberg model
 k = 1.
 h = 0.E-14
 # print('field', h)
-D = 8  # max virtual (bond) dimension
+D = 4  # max virtual (bond) dimension
 
 ########################################################################################################################
 
@@ -493,8 +494,8 @@ if model == "Kitaev":
     """
     # String-Gas state
 
-    phi1 = math.pi * 0.33
-    # phi1 = math.pi * 0.32
+    # phi1 = math.pi * 0.33
+    phi1 = math.pi * 0.32
     # phi1 = math.pi * 0.24
     # phi1 = math.pi * 0.342
     R1 = dimer_gas_operator(spin, phi1)
@@ -516,7 +517,6 @@ if model == "Kitaev":
     lambdas = [np.ones((8,), dtype=complex),
                np.ones((8,), dtype=complex),
                np.ones((8,), dtype=complex)]
-
     # calculate_dimer_gas_profile(tensor_a, tensor_b)
     """
 
@@ -547,9 +547,17 @@ energy = - 3 * energy / 2
 print('Energy of the initial state', energy, 'mag_x:', mag_x, 'num_of_iter', num_of_iter)
 """
 
+ctm = ctmrg.CTMRG(32, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
+print('ctm ready!')
+
+ctm.ctmrg_iteration(100)
+
 energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model)
 print('Energy of the initial state', - 3 * energy / 2, 'num_of_iter', num_of_iter)
 # print('Flux of the initial state', energy, 'num_of_iter', num_of_iter)
+
+exit()
+
 
 with open(file_name, 'w') as f:
     f.write('# Kitaev S=%s model - ITE flow\n' % spin)

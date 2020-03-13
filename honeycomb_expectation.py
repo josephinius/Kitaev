@@ -604,9 +604,15 @@ def init_weight_impurity_ctmrg(ten_a, ten_b, lam, model):
         op = (sx / 2, sy / 2, sz / 2)
     if model == "Kitaev":
         op = 1j * sx
+
     a_imp = create_double_impurity(ten_a, lam, op)
     b_imp = create_double_impurity(ten_b, lam, op)
-    w_imp = np.tensordot(a_imp, b_imp, axes=(0, 0))
+
+    if isinstance(a_imp, list):
+        w_imp = functools.reduce(lambda x, y: x + y, (np.tensordot(a, b, axes=(0, 0)) for a, b in zip(a_imp, b_imp)))
+    else:
+        w_imp = np.tensordot(a_imp, b_imp, axes=(0, 0))
+
     return w_imp
 
 

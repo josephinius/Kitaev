@@ -154,6 +154,9 @@ def transfer_matrix_renormalization(tm, p):
 
     """
 
+    # print('p.shape', p.shape)
+    # print('tm.shape', tm.shape)
+
     tmp = np.tensordot(p, tm, axes=([0, 1], [0, 1]))  # tmp_{a j t k} = p_{s i a} * tm_{s i j t k}
     projected_tm = np.tensordot(tmp, p, axes=([2, 3], [0, 1]))  # projected_tm_{a j b} = tmp_{a j t k} * p_{t k b}
     return projected_tm
@@ -207,10 +210,21 @@ def system_extension_and_projection(dim, weight, corners, transfer_matrices):
         c = corners[i]
         t1 = transfer_matrices[i % 4]
         t2 = transfer_matrices[(i + 3) % 4]
+        # print('corner extension...')
         corners_extended.append(corner_extension(c, t1, t2, weight))
+        # print('extended corner ready!')
+        # print('tm extension...')
         tms_extended.append(transfer_matrix_extension(t1, weight))
+        # print('tm extended ready!')
 
+    # print('create projectors...')
     projectors = create_four_projectors(*corners_extended, dim)
+    # print('projectors ready!')
+
+    """
+    for i in range(len(projectors)):
+        print('projector', i, 'shape', projectors[i].shape)
+    """
 
     corners_projected = []
     tms_projected = []
@@ -219,7 +233,7 @@ def system_extension_and_projection(dim, weight, corners, transfer_matrices):
         p1 = projectors[i % 4]
         p2 = projectors[(i + 3) % 4]
         corners_projected.append(corner_renormalization(corners_extended[i], p1, p2))
-        tms_projected.append(transfer_matrix_renormalization(transfer_matrices[i % 4], p1))
+        tms_projected.append(transfer_matrix_renormalization(tms_extended[i % 4], p1))
 
     return corners_projected, tms_projected
 
@@ -276,8 +290,12 @@ class CTMRG(object):
         for i in range(num_of_steps):
             self.corners, self.tms = system_extension_and_projection(self.dim, self.weight, self.corners, self.tms)
             for j in range(4):
-                self.corners[j] /= np.max(self.corners[j])
-                self.tms[j] /= np.max(self.tms[j])
+                corner_norm = np.max(np.abs(self.corners[j]))
+                self.corners[j] /= corner_norm
+                print('corner_norm', corner_norm)
+                tm_norm = np.max(np.abs(self.tms[j]))
+                self.tms[j] /= tm_norm
+                print('tm_norm', tm_norm)
 
             energy = measurement(self.weight, self.corners, self.tms, self.weight_imp)
-            print(i, energy)
+            print(i, 3 * energy / 2)
