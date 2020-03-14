@@ -208,7 +208,7 @@ def system_extension_and_projection(dim, weight, corners, transfer_matrices):
     for i in range(4):
         weight = weight_rotate(weight)
         c = corners[i]
-        t1 = transfer_matrices[i % 4]
+        t1 = transfer_matrices[i]
         t2 = transfer_matrices[(i + 3) % 4]
         # print('corner extension...')
         corners_extended.append(corner_extension(c, t1, t2, weight))
@@ -233,7 +233,7 @@ def system_extension_and_projection(dim, weight, corners, transfer_matrices):
         p1 = projectors[i % 4]
         p2 = projectors[(i + 3) % 4]
         corners_projected.append(corner_renormalization(corners_extended[i], p1, p2))
-        tms_projected.append(transfer_matrix_renormalization(tms_extended[i % 4], p1))
+        tms_projected.append(transfer_matrix_renormalization(tms_extended[i], p1))
 
     return corners_projected, tms_projected
 

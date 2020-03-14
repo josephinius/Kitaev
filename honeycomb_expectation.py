@@ -562,6 +562,10 @@ def calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, flip_vertical=Fa
 
 
 def init_ctm_ctmrg(ten_a, ten_b, lam):
+    """
+    Returns weight, tuple of four corner matrices, and tuple of
+    four transfer matrices for initializing CTMRG algorithm.
+    """
 
     assert ten_a.shape == ten_b.shape
 
@@ -593,6 +597,8 @@ def init_ctm_ctmrg(ten_a, ten_b, lam):
 
 
 def init_weight_impurity_ctmrg(ten_a, ten_b, lam, model):
+    """Returns impurity weight for energy calculation by CTMRG."""
+
     d = ten_a.shape[0]
     spin = None
     if d == 2:
@@ -617,6 +623,23 @@ def init_weight_impurity_ctmrg(ten_a, ten_b, lam, model):
 
 
 def export_to_ctmrg(ten_a, ten_b, lam, model):
+    """
+    Returns initial tensors for CTMRG calculation.
+
+    Input:
+
+    ten_a, ten_b -- tensors living on honeycomb lattice
+    lam -- singular values
+    model -- "Heisenberg" or "Kitaev"
+
+    Output:
+
+    w - weight (obtained as two contracted double tensors)
+    cs - tuple of four corner matrices
+    tms - tuple of four transfer matrices
+    w_imp - impurity weight for energy calculation
+    """
+
     w, cs, tms = init_ctm_ctmrg(ten_a, ten_b, lam)
     w_imp = init_weight_impurity_ctmrg(ten_a, ten_b, lam, model)
     return w, cs, tms, w_imp
