@@ -561,6 +561,10 @@ def calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, flip_vertical=Fa
     return torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_cp, ten_fp) / norm
 
 
+def normalize(x):
+    return x / np.max(np.abs(x))
+
+
 def init_ctm_ctmrg(ten_a, ten_b, lam):
     """
     Returns weight, tuple of four corner matrices, and tuple of
@@ -590,8 +594,9 @@ def init_ctm_ctmrg(ten_a, ten_b, lam):
     t3 = np.einsum('i j k k l->l i j', w.reshape((dy * dy, dz * dz, dy, dy, dz * dz)))
     t4 = np.einsum('i j k l l->i j k', w.reshape((dy * dy, dz * dz, dy * dy, dz, dz)))
 
-    corners = (c1, c2, c3, c4)
-    transfer_matrices = (t1, t2, t3, t4)
+    corners = tuple(map(normalize, (c1, c2, c3, c4)))
+
+    transfer_matrices = tuple(map(normalize, (t1, t2, t3, t4)))
 
     return w, corners, transfer_matrices
 
@@ -642,7 +647,10 @@ def export_to_ctmrg(ten_a, ten_b, lam, model):
 
     w, cs, tms = init_ctm_ctmrg(ten_a, ten_b, lam)
     w_imp = init_weight_impurity_ctmrg(ten_a, ten_b, lam, model)
-    return w, cs, tms, w_imp
+
+    w_norm = np.max(np.abs(w))
+
+    return w / w_norm, cs, tms, w_imp / w_norm
 
 
 def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model="Kitaev"):

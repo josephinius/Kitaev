@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import linalg
-# import math
+import math
 # import copy
 # import time
 # import pickle
@@ -76,7 +76,8 @@ def create_projector(density_matrix, dim):
 
     da, di, db, dj = density_matrix.shape
     density_matrix = density_matrix.reshape((da * di, db * dj))
-    projector, _, _ = linalg.svd(density_matrix, lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
+    projector, sv, _ = linalg.svd(density_matrix, lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
+    print('singular values', sv[:dim])
     projector = projector[:, :dim].reshape((da, di, -1))
     return projector
 
@@ -184,13 +185,15 @@ def create_four_projectors(c1, c2, c3, c4, dim):
 
     projectors = []
     for _ in range(4):
+        assert c1.shape[0] == c2.shape[2]
+        assert c1.shape[1] == c2.shape[3]
         dm = create_density_matrix(c1, c2, c3, c4)
-        dim_a = c1.shape[0]
-        dim_i = c1.shape[1]
-        assert dim_a == c2.shape[0]
-        assert dim_i == c2.shape[1]
-        projectors.append(create_projector(dm, dim=min(dim, dim_a * dim_i)))
+        # dim_a = c1.shape[0]
+        # dim_i = c1.shape[1]
+        # projectors.append(create_projector(dm, dim=min(dim, dim_a * dim_i)))
+        projectors.append(create_projector(dm, dim))
         c1, c2, c3, c4 = tuple_rotation(c1, c2, c3, c4)
+
     return projectors
 
 
@@ -277,18 +280,19 @@ def measurement(weight, corners, transfer_matrices, weight_imp):
 class CTMRG(object):
 
     def __init__(self, dim, weight, corners, tms, weight_imp):
-
         self.dim = dim
         self.weight = weight
         self.corners = corners
         self.tms = tms
         self.weight_imp = weight_imp
-
         self.iter_counter = 0
 
     def ctmrg_iteration(self, num_of_steps):
-
-        for i in range(num_of_steps):
+        energy = 0
+        energy_mem = -1
+        i = 0
+        # for i in range(num_of_steps):
+        while abs(energy - energy_mem) > 1.E-14 and i < num_of_steps:
             self.corners, self.tms = system_extension_and_projection(self.dim, self.weight, self.corners, self.tms)
             for j in range(4):
                 corner_norm = np.max(np.abs(self.corners[j]))
@@ -297,6 +301,7 @@ class CTMRG(object):
                 tm_norm = np.max(np.abs(self.tms[j]))
                 self.tms[j] /= tm_norm
                 print('tm_norm', tm_norm)
-
+            energy_mem = energy
             energy = measurement(self.weight, self.corners, self.tms, self.weight_imp)
             print(i, 3 * energy / 2)
+            i += 1
