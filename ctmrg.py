@@ -1,10 +1,10 @@
-import math
-import copy
 import numpy as np
 from scipy import linalg
+# import math
+# import copy
 # import time
 # import pickle
-from tqdm import tqdm
+# from tqdm import tqdm
 
 """
 
@@ -50,24 +50,25 @@ def create_density_matrix(c1, c2, c3, c4):
     """
     Returns density matrix constructed from four extended corner matrices.
 
-      C1  ____ __ a      b __ ____ C2
-         |    |              |    |
-         |____|__          __|____|
-         |    |   i      j   |    |
-         |    |              |    |
-         .    .              .    .
-         |    |              |    |
-         |____|____......____|____|
-         |    |              |    |
-         |____|____......____|____|
-      C4                           C3
+        DM_{a i b j} =
+
+        C1  ____ __ a      b __ ____ C2
+           |    |              |    |
+           |____|__          __|____|
+           |    |   i      j   |    |
+           |    |              |    |
+           .    .              .    .
+           |    |              |    |
+           |____|____......____|____|
+           |    |              |    |
+           |____|____......____|____|
+        C4                           C3
 
     """
 
     c2c3 = np.tensordot(c2, c3, axes=([0, 1], [2, 3]))  # c2c3_{b j d l} = c2_{c k b j} * c3_{d l c k}
     c2c3c4 = np.tensordot(c2c3, c4, axes=([2, 3], [2, 3]))  # c2c3c4_{b j e m} = c2c3_{b j d l} * c4_{e m d l}
-    dm = np.tensordot(c1, c2c3c4, axes=([2, 3], [2, 3]))  # dm_{a i b j} = c1_{a i e m} * c2c3c4_{b j e m}
-    return dm
+    return np.tensordot(c1, c2c3c4, axes=([2, 3], [2, 3]))  # dm_{a i b j} = c1_{a i e m} * c2c3c4_{b j e m}
 
 
 def create_projector(density_matrix, dim):
