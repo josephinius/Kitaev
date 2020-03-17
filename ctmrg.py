@@ -75,6 +75,11 @@ def create_projector(density_matrix, dim):
     """Returns projector used for renormalization of corner matrix and transfer matrix."""
 
     da, di, db, dj = density_matrix.shape
+
+    print('dimension is:', da * di)
+
+    return np.eye(da * di, db * dj).reshape((da, di, db * dj))
+
     density_matrix = density_matrix.reshape((da * di, db * dj))
     projector, sv, _ = linalg.svd(density_matrix, lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
     # print('singular values', sv[:dim])
@@ -286,7 +291,6 @@ class CTMRG(object):
         self.iter_counter = 0
 
     def ctmrg_iteration(self, num_of_steps):
-
         energy = 0
         energy_mem = -1
         i = 0
