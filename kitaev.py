@@ -547,10 +547,10 @@ energy = - 3 * energy / 2
 print('Energy of the initial state', energy, 'mag_x:', mag_x, 'num_of_iter', num_of_iter)
 """
 
-ctm = ctmrg.CTMRG(4, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
+ctm = ctmrg.CTMRG(64, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
 print('ctm ready!')
 
-ctm.ctmrg_iteration(10)
+ctm.ctmrg_iteration(1000)
 
 energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model)
 print('Energy of the initial state', - 3 * energy / 2, 'num_of_iter', num_of_iter)

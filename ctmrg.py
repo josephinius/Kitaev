@@ -77,7 +77,7 @@ def create_projector(density_matrix, dim):
     da, di, db, dj = density_matrix.shape
     density_matrix = density_matrix.reshape((da * di, db * dj))
     projector, sv, _ = linalg.svd(density_matrix, lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
-    print('singular values', sv[:dim])
+    # print('singular values', sv[:dim])
     projector = projector[:, :dim].reshape((da, di, -1))
     return projector
 
@@ -225,16 +225,11 @@ def system_extension_and_projection(dim, weight, corners, transfer_matrices):
     projectors = create_four_projectors(*corners_extended, dim)
     # print('projectors ready!')
 
-    """
-    for i in range(len(projectors)):
-        print('projector', i, 'shape', projectors[i].shape)
-    """
-
     corners_projected = []
     tms_projected = []
 
     for i in range(4):
-        p1 = projectors[i % 4]
+        p1 = projectors[i]
         p2 = projectors[(i + 3) % 4]
         corners_projected.append(corner_renormalization(corners_extended[i], p1, p2))
         tms_projected.append(transfer_matrix_renormalization(tms_extended[i], p1))
@@ -263,7 +258,7 @@ def measurement(weight, corners, transfer_matrices, weight_imp):
     t1, t2, t3, t4 = transfer_matrices
 
     c1t1 = np.tensordot(c1, t1, axes=(0, 2))  # c1t1_{h b i} = c1_{a h} * t1_{b i a}
-    c1t1c2 = np.tensordot(c1t1, c2, axes=(1, 0))  # c1t1c2_{h i c} = c1t1_{h b i} * c2_{c b}
+    c1t1c2 = np.tensordot(c1t1, c2, axes=(1, 1))  # c1t1c2_{h i c} = c1t1_{h b i} * c2_{c b}
     half1 = np.tensordot(c1t1c2, t2, axes=(2, 2))  # half1_{h i d j} = c1t1c2_{h i c} * t2_{d j c}
 
     t4c4 = np.tensordot(t4, c4, axes=(2, 0))  # t4c4_{h l f} = t4_{h l g} * c4_{g f}
@@ -272,6 +267,9 @@ def measurement(weight, corners, transfer_matrices, weight_imp):
 
     half2 = np.tensordot(t4c4t3c3, weight, axes=([1, 2], [3, 2]))  # half2_{h d i j} = t4c4t3c3_{h l k d} * w_{i j k l}
     norm = np.tensordot(half1, half2, axes=([0, 1, 2, 3], [0, 2, 1, 3]))
+
+    print('z', norm)
+
     half2 = np.tensordot(t4c4t3c3, weight_imp, axes=([1, 2], [3, 2]))
 
     return np.tensordot(half1, half2, axes=([0, 1, 2, 3], [0, 2, 1, 3])) / norm
@@ -288,6 +286,7 @@ class CTMRG(object):
         self.iter_counter = 0
 
     def ctmrg_iteration(self, num_of_steps):
+
         energy = 0
         energy_mem = -1
         i = 0
@@ -297,10 +296,10 @@ class CTMRG(object):
             for j in range(4):
                 corner_norm = np.max(np.abs(self.corners[j]))
                 self.corners[j] /= corner_norm
-                print('corner_norm', corner_norm)
+                # print('corner_norm', corner_norm)
                 tm_norm = np.max(np.abs(self.tms[j]))
                 self.tms[j] /= tm_norm
-                print('tm_norm', tm_norm)
+                # print('tm_norm', tm_norm)
             energy_mem = energy
             energy = measurement(self.weight, self.corners, self.tms, self.weight_imp)
             print(i, 3 * energy / 2)
