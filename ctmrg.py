@@ -6,6 +6,8 @@ import math
 # import pickle
 # from tqdm import tqdm
 
+EPS = 1.E-13
+
 """
 
 C_ab:
@@ -44,6 +46,62 @@ Partition function:
 
 
 """
+
+
+def create_up_and_down_projectors(dim, c1, c4):
+
+    m = np.tensordot(c1, c4, axes=([2, 3], [0, 1]))  # m_{a i b j} = c1_{a i g k} * c4_{g k b j}
+
+    da, di = c1.shape[:2]
+
+    u, s, vh = linalg.svd(m.reshape((da * di, da * di)), lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
+
+    print('s', s)
+
+    s = s[:dim]
+
+    s_new = []
+    for s in s[:dim]:
+        if s < EPS:
+            print('s too small', s)
+            break
+        s_new.append(s)
+        
+    s = np.array(s_new)
+    dim = s.shape[0]
+
+    print(u.shape)
+    print(vh.shape)
+    print(c1.shape)
+    print(c4.shape)
+
+    # vh = vh[:dim, :] / np.sqrt(s)[:, None]
+    # vh = vh[:dim, :] / s[:, None]
+    vh = np.conj(vh[:dim, :]) / (np.sqrt(s)[:, None])
+
+    p_up = np.tensordot(c4.reshape((da, di, da * di)), vh, axes=(2, 1))
+
+    # u = u[:, :dim] / np.sqrt(s)[None, :]
+    # u = u[:, :dim] / s[None, :]
+    u = np.conj(u[:, :dim]) / (np.sqrt(s)[None, :])
+
+    print(u.shape)
+    print(vh.shape)
+    print(c1.shape)
+    print(c4.shape)
+
+    p_down = np.tensordot(c1.reshape((da * di, da, di)), u, axes=(0, 0))
+
+    print(np.tensordot(p_up.reshape((da * di, -1)), p_down.reshape((da * di, -1)), axes=(0, 0)))
+    assert np.allclose(np.eye(dim),
+                       np.tensordot(
+                           p_up.reshape((da * di, -1)), 
+                           p_down.reshape((da * di, -1)), 
+                           axes=(0, 0)),
+                       rtol=1e-10,
+                       atol=5e-13
+                       )
+    return p_up, p_down
 
 
 def create_density_matrix(c1, c2, c3, c4):
@@ -143,29 +201,34 @@ def corner_renormalization(corner, p1, p2):
     return projected_corner
 
 
-def transfer_matrix_renormalization(tm, p):
+def transfer_matrix_renormalization(tm, p1, p2=None):
     """
     Returns re-normalized transfer matrix.
 
            a
            |
-          / \  P
+          / \  P1
          /   \
         |     |
      T  |_____|____ j
         |     |
          \   /
-          \ /  P
+          \ /  P2
            |
            b
 
     """
 
+    if p2 is None:
+        print('p2 not initialized')
+        # exit()
+        p2 = p1
+
     # print('p.shape', p.shape)
     # print('tm.shape', tm.shape)
 
-    tmp = np.tensordot(p, tm, axes=([0, 1], [0, 1]))  # tmp_{a j t k} = p_{s i a} * tm_{s i j t k}
-    projected_tm = np.tensordot(tmp, p, axes=([2, 3], [0, 1]))  # projected_tm_{a j b} = tmp_{a j t k} * p_{t k b}
+    tmp = np.tensordot(p1, tm, axes=([0, 1], [0, 1]))  # tmp_{a j t k} = p_{s i a} * tm_{s i j t k}
+    projected_tm = np.tensordot(tmp, p2, axes=([2, 3], [0, 1]))  # projected_tm_{a j b} = tmp_{a j t k} * p_{t k b}
     return projected_tm
 
 
@@ -227,17 +290,27 @@ def system_extension_and_projection(dim, weight, corners, transfer_matrices):
         # print('tm extended ready!')
 
     # print('create projectors...')
-    projectors = create_four_projectors(*corners_extended, dim)
+    # projectors = create_four_projectors(*corners_extended, dim)
     # print('projectors ready!')
+
+    p_up, p_down = create_up_and_down_projectors(dim, corners_extended[0], corners_extended[3])
 
     corners_projected = []
     tms_projected = []
 
+    """
     for i in range(4):
         p1 = projectors[i]
         p2 = projectors[(i + 3) % 4]
         corners_projected.append(corner_renormalization(corners_extended[i], p1, p2))
         tms_projected.append(transfer_matrix_renormalization(tms_extended[i], p1))
+    """
+
+    p1, p2 = p_up, p_down
+    for i in range(4):
+        corners_projected.append(corner_renormalization(corners_extended[i], p1, p1))
+        tms_projected.append(transfer_matrix_renormalization(tms_extended[i], p1, p2))
+        p1, p2 = p2, p1
 
     return corners_projected, tms_projected
 
@@ -291,12 +364,15 @@ class CTMRG(object):
         self.iter_counter = 0
 
     def ctmrg_iteration(self, num_of_steps):
+
         energy = 0
         energy_mem = -1
         i = 0
         # for i in range(num_of_steps):
-        while abs(energy - energy_mem) > 1.E-14 and i < num_of_steps:
+        while abs(energy - energy_mem) > 1.E-16 and i < num_of_steps:
+
             self.corners, self.tms = system_extension_and_projection(self.dim, self.weight, self.corners, self.tms)
+
             for j in range(4):
                 corner_norm = np.max(np.abs(self.corners[j]))
                 self.corners[j] /= corner_norm
@@ -304,7 +380,13 @@ class CTMRG(object):
                 tm_norm = np.max(np.abs(self.tms[j]))
                 self.tms[j] /= tm_norm
                 # print('tm_norm', tm_norm)
+
+            assert np.allclose(self.corners[0], self.corners[2])
+            assert np.allclose(self.corners[1], self.corners[3])
+            assert np.allclose(self.tms[0], self.tms[2])
+            assert np.allclose(self.tms[1], self.tms[3])
+
             energy_mem = energy
             energy = measurement(self.weight, self.corners, self.tms, self.weight_imp)
-            print(i, 3 * energy / 2)
+            print('ctm iter', i, 3 * energy / 2)
             i += 1
