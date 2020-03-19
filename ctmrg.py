@@ -6,7 +6,7 @@ import math
 # import pickle
 # from tqdm import tqdm
 
-EPS = 1.E-13
+EPS = 1.E-32
 
 """
 
@@ -79,8 +79,6 @@ def create_up_and_down_projectors(dim, c1, c4):
     # vh = vh[:dim, :] / s[:, None]
     vh = np.conj(vh[:dim, :]) / (np.sqrt(s)[:, None])
 
-    p_up = np.tensordot(c4.reshape((da, di, da * di)), vh, axes=(2, 1))
-
     # u = u[:, :dim] / np.sqrt(s)[None, :]
     # u = u[:, :dim] / s[None, :]
     u = np.conj(u[:, :dim]) / (np.sqrt(s)[None, :])
@@ -90,17 +88,20 @@ def create_up_and_down_projectors(dim, c1, c4):
     print(c1.shape)
     print(c4.shape)
 
+    p_up = np.tensordot(c4.reshape((da, di, da * di)), vh, axes=(2, 1))
     p_down = np.tensordot(c1.reshape((da * di, da, di)), u, axes=(0, 0))
 
-    print(np.tensordot(p_up.reshape((da * di, -1)), p_down.reshape((da * di, -1)), axes=(0, 0)))
-    assert np.allclose(np.eye(dim),
+    print(np.tensordot(p_up.reshape((da * di, dim)), p_down.reshape((da * di, dim)), axes=(1, 1)))
+
+    assert np.allclose(np.eye(da * di),
                        np.tensordot(
-                           p_up.reshape((da * di, -1)), 
-                           p_down.reshape((da * di, -1)), 
-                           axes=(0, 0)),
-                       rtol=1e-10,
-                       atol=5e-13
+                           p_up.reshape((da * di, dim)),
+                           p_down.reshape((da * di, dim)),
+                           axes=(1, 1)),
+                       rtol=1e-5,
+                       atol=1e-7
                        )
+
     return p_up, p_down
 
 
@@ -134,15 +135,17 @@ def create_projector(density_matrix, dim):
 
     da, di, db, dj = density_matrix.shape
 
-    print('dimension is:', da * di)
+    # print('dimension is:', da * di)
 
-    return np.eye(da * di, db * dj).reshape((da, di, db * dj))
+    # return np.eye(da * di, db * dj).reshape((da, di, db * dj))
 
     density_matrix = density_matrix.reshape((da * di, db * dj))
-    projector, sv, _ = linalg.svd(density_matrix, lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
+    # projector, sv, _ = linalg.svd(density_matrix, lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
+    w, projector = np.linalg.eigh(density_matrix)
+    # print('w', w)
     # print('singular values', sv[:dim])
-    projector = projector[:, :dim].reshape((da, di, -1))
-    return projector
+    projector = np.fliplr(projector)
+    return np.conj(projector[:, :dim].reshape((da, di, -1)))
 
 
 def corner_extension(corner, tm1, tm2, weight):
@@ -290,27 +293,27 @@ def system_extension_and_projection(dim, weight, corners, transfer_matrices):
         # print('tm extended ready!')
 
     # print('create projectors...')
-    # projectors = create_four_projectors(*corners_extended, dim)
+    projectors = create_four_projectors(*corners_extended, dim)
     # print('projectors ready!')
 
-    p_up, p_down = create_up_and_down_projectors(dim, corners_extended[0], corners_extended[3])
+    # p_up, p_down = create_up_and_down_projectors(dim, corners_extended[0], corners_extended[3])
 
     corners_projected = []
     tms_projected = []
 
-    """
     for i in range(4):
         p1 = projectors[i]
         p2 = projectors[(i + 3) % 4]
-        corners_projected.append(corner_renormalization(corners_extended[i], p1, p2))
-        tms_projected.append(transfer_matrix_renormalization(tms_extended[i], p1))
-    """
+        corners_projected.append(corner_renormalization(corners_extended[i], p1, np.conj(p2)))
+        tms_projected.append(transfer_matrix_renormalization(tms_extended[i], p1, np.conj(p1)))
 
+    """
     p1, p2 = p_up, p_down
     for i in range(4):
         corners_projected.append(corner_renormalization(corners_extended[i], p1, p1))
         tms_projected.append(transfer_matrix_renormalization(tms_extended[i], p1, p2))
         p1, p2 = p2, p1
+    """
 
     return corners_projected, tms_projected
 
@@ -346,7 +349,7 @@ def measurement(weight, corners, transfer_matrices, weight_imp):
     half2 = np.tensordot(t4c4t3c3, weight, axes=([1, 2], [3, 2]))  # half2_{h d i j} = t4c4t3c3_{h l k d} * w_{i j k l}
     norm = np.tensordot(half1, half2, axes=([0, 1, 2, 3], [0, 2, 1, 3]))
 
-    print('z', norm)
+    # print('z', norm)
 
     half2 = np.tensordot(t4c4t3c3, weight_imp, axes=([1, 2], [3, 2]))
 
@@ -369,7 +372,7 @@ class CTMRG(object):
         energy_mem = -1
         i = 0
         # for i in range(num_of_steps):
-        while abs(energy - energy_mem) > 1.E-16 and i < num_of_steps:
+        while abs(energy - energy_mem) > 1.E-14 and i < num_of_steps:
 
             self.corners, self.tms = system_extension_and_projection(self.dim, self.weight, self.corners, self.tms)
 
