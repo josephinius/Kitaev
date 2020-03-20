@@ -293,6 +293,19 @@ def weight_rotate(weight):
     return np.transpose(weight, (1, 2, 3, 0))
 
 
+def extend_and_project_transfer_matrix(t4, weight, u):
+
+    da, di = t4.shape[:2]
+
+    u = u.reshape((da, di, -1))
+
+    t4u = np.tensordot(t4, np.conj(u), axes=(0, 0))  # t4u_{l d i a} = t4_{g l d} * u_{(g, i) a}
+
+    t4uw = np.tensordot(t4u, weight, axes=([0, 2], [3, 0]))  # t4uw_{d a j k} = t4u_{l d i a} * weight_{i j k l}
+
+    return np.tensordot(t4uw, u, axes=([0, 3], [0, 1]))  # t4_new_{a j b} = t4uw_{d a j k} * u_{(d, k), b}
+
+
 def system_extension_and_projection(dim, weight, corners, transfer_matrices):
 
     c1, c2, c3, c4 = corners
@@ -300,13 +313,7 @@ def system_extension_and_projection(dim, weight, corners, transfer_matrices):
 
     for direction in range(4):
 
-        # print('direction', direction)
-
         c1 = extend_corner1(c1, t1)
-
-        # print('c4.shape', c4.shape)
-        # print('t3.shape', t3.shape)
-
         c4 = extend_corner4(c4, t3)
 
         u = create_projector_operator(dim, c1, c4)
@@ -314,16 +321,11 @@ def system_extension_and_projection(dim, weight, corners, transfer_matrices):
         c1 = np.tensordot(c1, u, axes=(1, 0))
         c4 = np.tensordot(np.conj(u), c4, axes=(0, 0))
 
-        # TODO: improve on inefficient transfer matrix extension and renormalization
-        t4 = transfer_matrix_extension(t4, weight)
-        da, di, dj, db, dk = t4.shape
-        u = u.reshape((da, di, -1))
-        t4 = transfer_matrix_renormalization(t4, np.conj(u), u)
-
-        weight = weight_rotate(weight)
+        t4 = extend_and_project_transfer_matrix(t4, weight, u)
 
         c1, c2, c3, c4 = tuple_rotation(c1, c2, c3, c4)
         t1, t2, t3, t4 = tuple_rotation(t1, t2, t3, t4)
+        weight = weight_rotate(weight)
 
     return [c1, c2, c3, c4], [t1, t2, t3, t4]
 
@@ -438,10 +440,12 @@ class CTMRG(object):
                 self.tms[j] /= tm_norm
                 # print('tm_norm', tm_norm)
 
-            # assert np.allclose(self.corners[0], self.corners[2])
-            # assert np.allclose(self.corners[1], self.corners[3])
-            # assert np.allclose(self.tms[0], self.tms[2])
-            # assert np.allclose(self.tms[1], self.tms[3])
+            """
+            assert np.allclose(self.corners[0], self.corners[2])
+            assert np.allclose(self.corners[1], self.corners[3])
+            assert np.allclose(self.tms[0], self.tms[2])
+            assert np.allclose(self.tms[1], self.tms[3])
+            """
 
             energy_mem = energy
             energy = measurement(self.weight, self.corners, self.tms, self.weight_imp)

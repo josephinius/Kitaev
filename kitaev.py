@@ -547,7 +547,7 @@ energy = - 3 * energy / 2
 print('Energy of the initial state', energy, 'mag_x:', mag_x, 'num_of_iter', num_of_iter)
 """
 
-ctm = ctmrg.CTMRG(1024, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
+ctm = ctmrg.CTMRG(524, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
 print('ctm ready!')
 
 ctm.ctmrg_iteration(100)
