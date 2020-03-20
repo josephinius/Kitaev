@@ -495,8 +495,8 @@ if model == "Kitaev":
     # String-Gas state
 
     # phi1 = math.pi * 0.33
-    phi1 = math.pi * 0.32
-    # phi1 = math.pi * 0.24
+    # phi1 = math.pi * 0.32
+    phi1 = math.pi * 0.275
     # phi1 = math.pi * 0.342
     R1 = dimer_gas_operator(spin, phi1)
     tensor_a = apply_gas_operator(tensor_a, R1)
@@ -547,10 +547,10 @@ energy = - 3 * energy / 2
 print('Energy of the initial state', energy, 'mag_x:', mag_x, 'num_of_iter', num_of_iter)
 """
 
-ctm = ctmrg.CTMRG(32, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
+ctm = ctmrg.CTMRG(1024, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
 print('ctm ready!')
 
-ctm.ctmrg_iteration(100_000)
+ctm.ctmrg_iteration(100)
 print('end of ctm calculation\n')
 
 exit()

@@ -48,6 +48,25 @@ Partition function:
 """
 
 
+def extend_corner1(c1, t1):
+    c1t1 = np.tensordot(c1, t1, axes=(0, 2))  # c1t1_{b a i} = c1_{g b} * t1_{a i g}
+    c1t1 = np.transpose(c1t1, (1, 0, 2))  # c1t1_{a b i}
+    return c1t1.reshape((t1.shape[0], -1))  # c1t1_{a (b i)}
+
+
+def extend_corner4(c4, t3):
+    c4t3 = np.tensordot(c4, t3, axes=(1, 0))  # c4t3_{a i b} = c4_{a g} * t3_{g i b}
+    return c4t3.reshape((-1, t3.shape[2]))  # c4t3_{(a i) b}
+
+
+def create_projector_operator(dim, c1, c4):
+    m1 = np.tensordot(c1, np.conj(c1), axes=(0, 0))
+    m2 = np.tensordot(c4, np.conj(c4), axes=(1, 1))
+    w, u = np.linalg.eigh(m1 + m2)
+    u = np.fliplr(u)
+    return np.conj(u[:, :dim])
+
+
 def create_up_and_down_projectors(dim, c1, c4):
 
     m = np.tensordot(c1, c4, axes=([2, 3], [0, 1]))  # m_{a i b j} = c1_{a i g k} * c4_{g k b j}
@@ -275,6 +294,41 @@ def weight_rotate(weight):
 
 
 def system_extension_and_projection(dim, weight, corners, transfer_matrices):
+
+    c1, c2, c3, c4 = corners
+    t1, t2, t3, t4 = transfer_matrices
+
+    for direction in range(4):
+
+        # print('direction', direction)
+
+        c1 = extend_corner1(c1, t1)
+
+        # print('c4.shape', c4.shape)
+        # print('t3.shape', t3.shape)
+
+        c4 = extend_corner4(c4, t3)
+
+        u = create_projector_operator(dim, c1, c4)
+
+        c1 = np.tensordot(c1, u, axes=(1, 0))
+        c4 = np.tensordot(np.conj(u), c4, axes=(0, 0))
+
+        # TODO: improve on inefficient transfer matrix extension and renormalization
+        t4 = transfer_matrix_extension(t4, weight)
+        da, di, dj, db, dk = t4.shape
+        u = u.reshape((da, di, -1))
+        t4 = transfer_matrix_renormalization(t4, np.conj(u), u)
+
+        weight = weight_rotate(weight)
+
+        c1, c2, c3, c4 = tuple_rotation(c1, c2, c3, c4)
+        t1, t2, t3, t4 = tuple_rotation(t1, t2, t3, t4)
+
+    return [c1, c2, c3, c4], [t1, t2, t3, t4]
+
+
+def system_extension_and_projection_old(dim, weight, corners, transfer_matrices):
     """Returns corners and transfer matrices extended (and projected) by one iterative CTMRG step."""
 
     corners_extended = []
@@ -372,7 +426,7 @@ class CTMRG(object):
         energy_mem = -1
         i = 0
         # for i in range(num_of_steps):
-        while abs(energy - energy_mem) > 1.E-14 and i < num_of_steps:
+        while abs(energy - energy_mem) > 1.E-10 and i < num_of_steps:
 
             self.corners, self.tms = system_extension_and_projection(self.dim, self.weight, self.corners, self.tms)
 
@@ -384,10 +438,10 @@ class CTMRG(object):
                 self.tms[j] /= tm_norm
                 # print('tm_norm', tm_norm)
 
-            assert np.allclose(self.corners[0], self.corners[2])
-            assert np.allclose(self.corners[1], self.corners[3])
-            assert np.allclose(self.tms[0], self.tms[2])
-            assert np.allclose(self.tms[1], self.tms[3])
+            # assert np.allclose(self.corners[0], self.corners[2])
+            # assert np.allclose(self.corners[1], self.corners[3])
+            # assert np.allclose(self.tms[0], self.tms[2])
+            # assert np.allclose(self.tms[1], self.tms[3])
 
             energy_mem = energy
             energy = measurement(self.weight, self.corners, self.tms, self.weight_imp)
