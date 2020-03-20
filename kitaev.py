@@ -393,12 +393,17 @@ def calculate_dimer_gas_profile(tensor_a, tensor_b, file_name='dimer_gas_profile
         dimer_tensor_a = apply_gas_operator(tensor_a, R)
         dimer_tensor_b = apply_gas_operator(tensor_b, R)
 
-        energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(
-            dimer_tensor_a, dimer_tensor_b, lambdas, D, model)
+        ctm = ctmrg.CTMRG(64, *honeycomb_expectation.export_to_ctmrg(dimer_tensor_a, dimer_tensor_b, lambdas, model))
+        energy, delta, num_of_iter = ctm.ctmrg_iteration(100)
+
+        # energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(
+        #    dimer_tensor_a, dimer_tensor_b, lambdas, D, model)
+
         print('Energy', - 3 * energy / 2, 'num_of_iter', num_of_iter)
         f = open(file_name, 'a')
         # f.write('%d\t\t%.15f\t%.15f\t%d\n' % (0, np.real(energy), np.real(mag_x), num_of_iter))
-        f.write('%.15f\t%.15f\t%d\n' % (z, - 3 * np.real(energy) / 2, num_of_iter))
+        # f.write('%.15f\t%.15f\t%d\n' % (z, - 3 * np.real(energy) / 2, num_of_iter))
+        f.write('%.15f\t%.15f\t%.15f\t%d\n' % (z, - 3 * np.real(energy) / 2, delta, num_of_iter))
         # f.write('%d\t\t%.15f\t%d\n' % (0, np.real(energy), num_of_iter))
         f.close()
 
@@ -408,7 +413,7 @@ def calculate_dimer_gas_profile(tensor_a, tensor_b, file_name='dimer_gas_profile
 model = "Kitaev"
 # model = "Heisenberg"
 
-spin = "1/2"  # implemented options so far: spin = "1", "1/2" for Kitaev model, spin = "1/2" for Heisenberg model
+spin = "1"  # implemented options so far: spin = "1", "1/2" for Kitaev model, spin = "1/2" for Heisenberg model
 k = 1.
 h = 0.E-14
 # print('field', h)
@@ -517,8 +522,9 @@ if model == "Kitaev":
     lambdas = [np.ones((8,), dtype=complex),
                np.ones((8,), dtype=complex),
                np.ones((8,), dtype=complex)]
-    # calculate_dimer_gas_profile(tensor_a, tensor_b)
     """
+
+    calculate_dimer_gas_profile(tensor_a, tensor_b)
 
 # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
 # tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
@@ -547,16 +553,12 @@ energy = - 3 * energy / 2
 print('Energy of the initial state', energy, 'mag_x:', mag_x, 'num_of_iter', num_of_iter)
 """
 
-ctm = ctmrg.CTMRG(524, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
-print('ctm ready!')
+ctm = ctmrg.CTMRG(64, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
+energy, delta, num_of_iter = ctm.ctmrg_iteration(100)
 
-ctm.ctmrg_iteration(100)
-print('end of ctm calculation\n')
-
-exit()
-
-energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model)
-print('Energy of the initial state', - 3 * energy / 2, 'num_of_iter', num_of_iter)
+# energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model)
+# print('Energy of the initial state', - 3 * energy / 2, 'num_of_iter', num_of_iter)
+print('Energy of the initial state', - 3 * energy / 2, 'precision:', delta, 'num_of_iter', num_of_iter)
 # print('Flux of the initial state', energy, 'num_of_iter', num_of_iter)
 
 
@@ -585,7 +587,7 @@ else:
 
 j = 0  # ITE-step index
 
-while tau >= tau_final and (j * refresh < 2100):
+while tau >= tau_final and (j * refresh < 2600):
 
     for i in tqdm(range(refresh)):
         tensor_a, tensor_b, lambdas = update_step(tensor_a, tensor_b, lambdas, u_gates)
@@ -596,33 +598,36 @@ while tau >= tau_final and (j * refresh < 2100):
     print(lambdas[1][:12])
     print(lambdas[2][:12])
 
+    """
     tensor_a_copy = copy.deepcopy(tensor_a)
     tensor_b_copy = copy.deepcopy(tensor_b)
     lambdas_copy = copy.deepcopy(lambdas)
-
     for i in range(1):
         tensor_a_copy, tensor_b_copy, lambdas_copy = update_step(tensor_a_copy, tensor_b_copy, lambdas_copy)
         tensor_a_copy = tensor_a_copy / np.max(np.abs(tensor_a_copy))
         tensor_b_copy = tensor_b_copy / np.max(np.abs(tensor_b_copy))
         lambdas_copy = [lam / lam[0] for lam in lambdas_copy]
-
     print(lambdas_copy[0][:12])
     print(lambdas_copy[1][:12])
     print(lambdas_copy[2][:12])
-
     energy, num_of_iter = \
         honeycomb_expectation.coarse_graining_procedure(tensor_a_copy, tensor_b_copy, lambdas_copy, D, model)
+    """
+
+    ctm = ctmrg.CTMRG(64, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
+    energy, delta, num_of_iter = ctm.ctmrg_iteration(100)
     # energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D)
 
     energy = - 3 * energy / 2
     # energy = energy / 4
 
     # print('# ITE flow iter:', (j + 1) * refresh, 'energy:', energy, 'mag_x:', mag_x, 'num_of_iter:', num_of_iter)
-    print('# ITE flow iter:', (j + 1) * refresh, 'energy:', energy, 'num_of_iter:', num_of_iter)
+    # print('# ITE flow iter:', (j + 1) * refresh, 'energy:', energy, 'num_of_iter:', num_of_iter)
+    print('# ITE flow iter:', (j + 1) * refresh, 'energy:', energy, 'delta:', delta, 'num_of_iter:', num_of_iter)
 
     f = open(file_name, 'a')
     # f.write('%d\t\t%.15f\t%.15f\t%d\n' % ((j + 1) * refresh, np.real(energy), np.real(mag_x), num_of_iter))
-    f.write('%d\t\t%.15f\t%.15f\t%d\n' % ((j + 1) * refresh, np.real(energy), tau, num_of_iter))
+    f.write('%d\t\t%.15f\t%.15f\t%.15f\t%d\n' % ((j + 1) * refresh, np.real(energy), delta, tau, num_of_iter))
     f.close()
 
     s1 = abs_list_difference(lambdas[0], lambdas_memory[0])

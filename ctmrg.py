@@ -1,12 +1,11 @@
 import numpy as np
-from scipy import linalg
-import math
+# from scipy import linalg
+# import math
 # import copy
 # import time
 # import pickle
 # from tqdm import tqdm
 
-EPS = 1.E-32
 
 """
 
@@ -65,63 +64,6 @@ def create_projector_operator(dim, c1, c4):
     w, u = np.linalg.eigh(m1 + m2)
     u = np.fliplr(u)
     return np.conj(u[:, :dim])
-
-
-def create_up_and_down_projectors(dim, c1, c4):
-
-    m = np.tensordot(c1, c4, axes=([2, 3], [0, 1]))  # m_{a i b j} = c1_{a i g k} * c4_{g k b j}
-
-    da, di = c1.shape[:2]
-
-    u, s, vh = linalg.svd(m.reshape((da * di, da * di)), lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
-
-    print('s', s)
-
-    s = s[:dim]
-
-    s_new = []
-    for s in s[:dim]:
-        if s < EPS:
-            print('s too small', s)
-            break
-        s_new.append(s)
-        
-    s = np.array(s_new)
-    dim = s.shape[0]
-
-    print(u.shape)
-    print(vh.shape)
-    print(c1.shape)
-    print(c4.shape)
-
-    # vh = vh[:dim, :] / np.sqrt(s)[:, None]
-    # vh = vh[:dim, :] / s[:, None]
-    vh = np.conj(vh[:dim, :]) / (np.sqrt(s)[:, None])
-
-    # u = u[:, :dim] / np.sqrt(s)[None, :]
-    # u = u[:, :dim] / s[None, :]
-    u = np.conj(u[:, :dim]) / (np.sqrt(s)[None, :])
-
-    print(u.shape)
-    print(vh.shape)
-    print(c1.shape)
-    print(c4.shape)
-
-    p_up = np.tensordot(c4.reshape((da, di, da * di)), vh, axes=(2, 1))
-    p_down = np.tensordot(c1.reshape((da * di, da, di)), u, axes=(0, 0))
-
-    print(np.tensordot(p_up.reshape((da * di, dim)), p_down.reshape((da * di, dim)), axes=(1, 1)))
-
-    assert np.allclose(np.eye(da * di),
-                       np.tensordot(
-                           p_up.reshape((da * di, dim)),
-                           p_down.reshape((da * di, dim)),
-                           axes=(1, 1)),
-                       rtol=1e-5,
-                       atol=1e-7
-                       )
-
-    return p_up, p_down
 
 
 def create_density_matrix(c1, c2, c3, c4):
@@ -294,15 +236,10 @@ def weight_rotate(weight):
 
 
 def extend_and_project_transfer_matrix(t4, weight, u):
-
     da, di = t4.shape[:2]
-
     u = u.reshape((da, di, -1))
-
     t4u = np.tensordot(t4, np.conj(u), axes=(0, 0))  # t4u_{l d i a} = t4_{g l d} * u_{(g, i) a}
-
     t4uw = np.tensordot(t4u, weight, axes=([0, 2], [3, 0]))  # t4uw_{d a j k} = t4u_{l d i a} * weight_{i j k l}
-
     return np.tensordot(t4uw, u, axes=([0, 3], [0, 1]))  # t4_new_{a j b} = t4uw_{d a j k} * u_{(d, k), b}
 
 
@@ -351,8 +288,6 @@ def system_extension_and_projection_old(dim, weight, corners, transfer_matrices)
     # print('create projectors...')
     projectors = create_four_projectors(*corners_extended, dim)
     # print('projectors ready!')
-
-    # p_up, p_down = create_up_and_down_projectors(dim, corners_extended[0], corners_extended[3])
 
     corners_projected = []
     tms_projected = []
@@ -428,7 +363,7 @@ class CTMRG(object):
         energy_mem = -1
         i = 0
         # for i in range(num_of_steps):
-        while abs(energy - energy_mem) > 1.E-10 and i < num_of_steps:
+        while abs(energy - energy_mem) > 1.E-12 and i < num_of_steps:
 
             self.corners, self.tms = system_extension_and_projection(self.dim, self.weight, self.corners, self.tms)
 
@@ -451,3 +386,5 @@ class CTMRG(object):
             energy = measurement(self.weight, self.corners, self.tms, self.weight_imp)
             print('ctm iter', i, 3 * energy / 2)
             i += 1
+
+        return energy, abs(energy - energy_mem), i
