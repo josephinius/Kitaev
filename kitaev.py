@@ -396,8 +396,8 @@ def calculate_dimer_gas_profile(tensor_a, tensor_b, m, file_name='dimer_gas_prof
         ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(dimer_tensor_a, dimer_tensor_b, lambdas, model))
         energy, delta, num_of_iter = ctm.ctmrg_iteration()
 
-        # energy, delta, num_of_iter = honeycomb_expectation.coarse_graining_procedure(
-        #    dimer_tensor_a, dimer_tensor_b, lambdas, m, model)
+        # energy, delta, num_of_iter = \
+        #    honeycomb_expectation.coarse_graining_procedure(dimer_tensor_a, dimer_tensor_b, lambdas, m, model)
 
         print('Energy', - 3 * energy / 2, 'num_of_iter', num_of_iter)
         f = open(file_name, 'a')
@@ -415,10 +415,10 @@ model = "Kitaev"
 
 spin = "1"  # implemented options so far: spin = "1", "1/2" for Kitaev model, spin = "1/2" for Heisenberg model
 k = 1.
-h = 0.E-14
+h = 0.E-14  # external field - not introduced consistently for all settings
 # print('field', h)
 D = 4  # max virtual (bond) dimension
-m = 4  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
+m = 64  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
 
 ########################################################################################################################
 
@@ -448,7 +448,9 @@ xi = 1  # initial virtual (bond) dimension
 
 tensor_a = np.zeros((d, xi, xi, xi), dtype=complex)
 tensor_b = np.zeros((d, xi, xi, xi), dtype=complex)
-lambdas = [np.array([1., ], dtype=complex), np.array([1., ], dtype=complex), np.array([1., ], dtype=complex)]
+lambdas = [np.array([1., ], dtype=complex),
+           np.array([1., ], dtype=complex),
+           np.array([1., ], dtype=complex)]
 
 if model == "Kitaev":
     if spin == "1":
@@ -497,9 +499,9 @@ if model == "Kitaev":
                np.array([1., 1.], dtype=complex),
                np.array([1., 1.], dtype=complex)]
 
-    """
     # String-Gas state
 
+    """
     # phi1 = math.pi * 0.33
     # phi1 = math.pi * 0.32
     phi1 = math.pi * 0.275
