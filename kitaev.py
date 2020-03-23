@@ -367,7 +367,7 @@ def dimer_gas_operator(spin, phi):
     return R
 
 
-def calculate_dimer_gas_profile(tensor_a, tensor_b, file_name='dimer_gas_profile.txt'):
+def calculate_dimer_gas_profile(tensor_a, tensor_b, m, file_name='dimer_gas_profile.txt'):
     """Calculates energy for dimer gas state for values of variational parameter in fixed interval."""
 
     d = tensor_a.shape[0]  # physical dimension
@@ -384,20 +384,20 @@ def calculate_dimer_gas_profile(tensor_a, tensor_b, file_name='dimer_gas_profile
                np.ones((dim,), dtype=complex)]
 
     with open(file_name, 'w') as f:
-        f.write('# Kitaev S=%s model - 1st order String Gas\n' % spin)
-        f.write('# D=%d\n' % dim)
-        f.write('# phi/pi\t\tEnergy\t\t\tCoarse-grain steps\n')
+        f.write('# %s S=%s model - 1st order String Gas\n' % (model, spin))
+        f.write('# D=%d, m=%d\n' % (dim, m))
+        f.write('# phi/pi\t\tEnergy\t\t\tConvergence\t\tCoarse-grain steps\n')
 
-    for z in np.linspace(0, 0.5, num=200, endpoint=False):
+    for z in np.linspace(0, 0.5, num=100, endpoint=False):
         R = dimer_gas_operator(spin, z * math.pi)
         dimer_tensor_a = apply_gas_operator(tensor_a, R)
         dimer_tensor_b = apply_gas_operator(tensor_b, R)
 
-        ctm = ctmrg.CTMRG(64, *honeycomb_expectation.export_to_ctmrg(dimer_tensor_a, dimer_tensor_b, lambdas, model))
-        energy, delta, num_of_iter = ctm.ctmrg_iteration(100)
+        ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(dimer_tensor_a, dimer_tensor_b, lambdas, model))
+        energy, delta, num_of_iter = ctm.ctmrg_iteration()
 
-        # energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(
-        #    dimer_tensor_a, dimer_tensor_b, lambdas, D, model)
+        # energy, delta, num_of_iter = honeycomb_expectation.coarse_graining_procedure(
+        #    dimer_tensor_a, dimer_tensor_b, lambdas, m, model)
 
         print('Energy', - 3 * energy / 2, 'num_of_iter', num_of_iter)
         f = open(file_name, 'a')
@@ -418,6 +418,7 @@ k = 1.
 h = 0.E-14
 # print('field', h)
 D = 4  # max virtual (bond) dimension
+m = 4  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
 
 ########################################################################################################################
 
@@ -524,7 +525,7 @@ if model == "Kitaev":
                np.ones((8,), dtype=complex)]
     """
 
-    calculate_dimer_gas_profile(tensor_a, tensor_b)
+    calculate_dimer_gas_profile(tensor_a, tensor_b, m)
 
 # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
 # tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
@@ -546,29 +547,24 @@ file_name = 'kitaev.txt'  # output file
 
 energy = 1
 
-"""
-energy, mag_x, num_of_iter = honeycomb_expectation.kitaevS1_GS_expectation_calculation(tensor_a, tensor_b, lambdas, D)
-energy = - 3 * energy / 2
 
-print('Energy of the initial state', energy, 'mag_x:', mag_x, 'num_of_iter', num_of_iter)
-"""
+ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
+energy, delta, num_of_iter = ctm.ctmrg_iteration()
 
-ctm = ctmrg.CTMRG(64, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
-energy, delta, num_of_iter = ctm.ctmrg_iteration(100)
-
-# energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model)
+# energy, delta, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, m, model)
 # print('Energy of the initial state', - 3 * energy / 2, 'num_of_iter', num_of_iter)
 print('Energy of the initial state', - 3 * energy / 2, 'precision:', delta, 'num_of_iter', num_of_iter)
 # print('Flux of the initial state', energy, 'num_of_iter', num_of_iter)
 
 
 with open(file_name, 'w') as f:
-    f.write('# Kitaev S=%s model - ITE flow\n' % spin)
-    f.write('# D=%d, tau=%.8E, h=%.14E\n' % (D, tau, h))
-    f.write('# Iter\t\tEnergy\t\t\tCoarse-grain steps\n')
+    f.write('# %s S=%s model - ITE flow\n' % (model, spin))
+    f.write('# D=%d, m=%d, tau=%.8E, h=%.14E\n' % (D, m, tau, h))
+    f.write('# Iter\t\tEnergy\t\t\tConvergence\t\ttau\t\t\tCoarse-grain steps\n')
 f = open(file_name, 'a')
 # f.write('%d\t\t%.15f\t%.15f\t%d\n' % (0, np.real(energy), np.real(mag_x), num_of_iter))
-f.write('%d\t\t%.15f\t%d\n' % (0, - 3 * np.real(energy) / 2, num_of_iter))
+# f.write('%d\t\t%.15f\t%d\n' % (0, - 3 * np.real(energy) / 2, num_of_iter))
+f.write('%d\t\t%.15f\t%.15f\t%.15f\t%d\n' % (0, - 3 * np.real(energy) / 2, delta, 0, num_of_iter))
 # f.write('%d\t\t%.15f\t%d\n' % (0, np.real(energy), num_of_iter))
 f.close()
 
@@ -610,13 +606,14 @@ while tau >= tau_final and (j * refresh < 2600):
     print(lambdas_copy[0][:12])
     print(lambdas_copy[1][:12])
     print(lambdas_copy[2][:12])
-    energy, num_of_iter = \
-        honeycomb_expectation.coarse_graining_procedure(tensor_a_copy, tensor_b_copy, lambdas_copy, D, model)
+    energy, delta, num_of_iter = \
+        honeycomb_expectation.coarse_graining_procedure(tensor_a_copy, tensor_b_copy, lambdas_copy, m, model)
     """
 
-    ctm = ctmrg.CTMRG(64, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
-    energy, delta, num_of_iter = ctm.ctmrg_iteration(100)
-    # energy, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, D)
+    ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
+    energy, delta, num_of_iter = ctm.ctmrg_iteration()
+    # energy, delta, num_of_iter = \
+    #    honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, m, model)
 
     energy = - 3 * energy / 2
     # energy = energy / 4

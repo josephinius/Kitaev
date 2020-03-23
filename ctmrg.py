@@ -357,13 +357,13 @@ class CTMRG(object):
         self.weight_imp = weight_imp
         self.iter_counter = 0
 
-    def ctmrg_iteration(self, num_of_steps):
+    def ctmrg_iteration(self, num_of_steps=20):
 
         energy = 0
         energy_mem = -1
         i = 0
         # for i in range(num_of_steps):
-        while abs(energy - energy_mem) > 1.E-12 and i < num_of_steps:
+        while abs(energy - energy_mem) > 1.E-10 and i < num_of_steps:
 
             self.corners, self.tms = system_extension_and_projection(self.dim, self.weight, self.corners, self.tms)
 

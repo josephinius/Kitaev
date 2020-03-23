@@ -653,13 +653,13 @@ def export_to_ctmrg(ten_a, ten_b, lam, model):
     return w / w_norm, cs, tms, w_imp / w_norm
 
 
-def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model="Kitaev"):
+def coarse_graining_procedure(tensor_a, tensor_b, lambdas, dim_cut, model="Kitaev"):
     """
     Returns the converged energy given the quantum state (tensor_a, tensor_b) for the spin={1/2, 1} Kitaev model and
     prints log of the convergence wrt iterative steps of coarse-graining.
     """
 
-    dim_cut = D * D
+    # dim_cut = D * D
     d = tensor_a.shape[0]  # physical dimension
 
     spin = None
@@ -932,4 +932,4 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, D, model="Kitaev"):
         num_of_iter += 1
 
     # return energy, sx_0 / norm, num_of_iter
-    return energy, num_of_iter
+    return energy, abs(energy - energy_mem), num_of_iter
