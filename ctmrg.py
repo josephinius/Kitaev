@@ -66,7 +66,7 @@ def extend_corner1(c1, t1):
 
 def extend_corner4(c4, t3):
     """
-    Returns extended corner matrix c1 according to following schema:
+    Returns extended corner matrix c4 according to following schema:
 
          ( a         i )
            |         |
