@@ -136,7 +136,7 @@ def system_extension_and_projection(dim, weight, corners, transfer_matrices):
     c1, c2, c3, c4 = corners
     t1, t2, t3, t4 = transfer_matrices
 
-    for direction in range(4):
+    for _ in range(4):
 
         c1 = extend_corner1(c1, t1)
         c4 = extend_corner4(c4, t3)
@@ -344,14 +344,6 @@ def system_extension_and_projection_old(dim, weight, corners, transfer_matrices)
         p2 = projectors[(i + 3) % 4]
         corners_projected.append(corner_renormalization(corners_extended[i], p1, np.conj(p2)))
         tms_projected.append(transfer_matrix_renormalization(tms_extended[i], p1, np.conj(p1)))
-
-    """
-    p1, p2 = p_up, p_down
-    for i in range(4):
-        corners_projected.append(corner_renormalization(corners_extended[i], p1, p1))
-        tms_projected.append(transfer_matrix_renormalization(tms_extended[i], p1, p2))
-        p1, p2 = p2, p1
-    """
 
     return corners_projected, tms_projected
 

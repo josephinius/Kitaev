@@ -1,5 +1,5 @@
 # Kitaev S=1 model - 1st order String Gas
-# D=4
+# D=4 (TRG)
 # phi/pi		Energy			Coarse-grain steps
 0.000000000000000	-0.505618924201646	7
 0.002500000000000	-0.505642398179959	7
