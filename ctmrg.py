@@ -104,7 +104,6 @@ def create_projector_operator(dim, c1, c4):
 
     m1 = np.tensordot(c1, np.conj(c1), axes=(0, 0))  # m1_{ai bj} = c1_{g (a i)} * conj(c1)_{g (b j)}
     m2 = np.tensordot(c4, np.conj(c4), axes=(1, 1))  # m2_{ai bj} = c4_{(a i) g} * conj(c4)_{(b j) g}
-
     # w, u = np.linalg.eigh(m1 + m2)
     # w, u = linalg.eigh(m1 + m2, overwrite_a=True, check_finite=False)
     _, u = linalg.eigh(m1 + m2, overwrite_a=True, check_finite=False)
@@ -114,6 +113,24 @@ def create_projector_operator(dim, c1, c4):
 
 
 def extend_and_project_transfer_matrix(t4, weight, u):
+    """
+    Returns extended and re-normalized corner matrix according to following schema:
+
+            a
+            |
+           / \ conj(U)
+          /   \
+         |     |  Weight
+      T4 |_____|____
+         |     |     j
+         |     |
+          \   /
+           \ /  U
+            |
+            b
+
+    """
+
     da, di = t4.shape[:2]
     u = u.reshape((da, di, -1))
     t4u = np.tensordot(t4, np.conj(u), axes=(0, 0))  # t4u_{l d i a} = t4_{g l d} * u_{(g, i) a}
@@ -122,6 +139,8 @@ def extend_and_project_transfer_matrix(t4, weight, u):
 
 
 def tuple_rotation(c1, c2, c3, c4):
+    """Returns new tuple shifted to left by one place."""
+
     return c2, c3, c4, c1
 
 
@@ -132,6 +151,13 @@ def weight_rotate(weight):
 
 
 def system_extension_and_projection(dim, weight, corners, transfer_matrices):
+    """Returns corners and transfer matrices extended (and projected) by one iterative CTMRG step. Here, one step of
+    CTMRG consists of repeating four times following two steps:
+
+        (1) introducing additional column to system;
+        (2) 90-degrees rotation of whole system.
+
+    """
 
     c1, c2, c3, c4 = corners
     t1, t2, t3, t4 = transfer_matrices
@@ -387,9 +413,12 @@ def measurement(weight, corners, transfer_matrices, weight_imp):
 
 
 class CTMRG(object):
+    """An implementation of Corner Transfer Matrix Renormalisation Group (CTMRG) algorithm."""
 
     def __init__(self, dim, weight, corners, tms, weight_imp):
-        self.dim = dim
+        """Creates a CTMRG object from initial local weights."""
+
+        self.dim = dim  # cut-off for virtual degrees of freedom
         self.weight = weight
         self.corners = corners
         self.tms = tms
@@ -397,6 +426,8 @@ class CTMRG(object):
         self.iter_counter = 0
 
     def ctmrg_iteration(self, num_of_steps=20):
+        """Performs at most num_of_steps iterations of ctmrg algorithm and prints energy after each iteration.
+        Returns the final energy, "precision", and number of iterations."""
 
         energy = 0
         energy_mem = -1
