@@ -418,7 +418,7 @@ k = 1.
 h = 0.E-14  # external field - not introduced consistently for all settings
 # print('field', h)
 D = 4  # max virtual (bond) dimension
-m = 64  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
+m = 32  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
 
 ########################################################################################################################
 
@@ -527,7 +527,7 @@ if model == "Kitaev":
                np.ones((8,), dtype=complex)]
     """
 
-    calculate_dimer_gas_profile(tensor_a, tensor_b, m)
+    # calculate_dimer_gas_profile(tensor_a, tensor_b, m)
 
 # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
 # tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
@@ -585,7 +585,7 @@ else:
 
 j = 0  # ITE-step index
 
-while tau >= tau_final and (j * refresh < 2600):
+while tau >= tau_final and (j * refresh < 2500):
 
     for i in tqdm(range(refresh)):
         tensor_a, tensor_b, lambdas = update_step(tensor_a, tensor_b, lambdas, u_gates)
