@@ -113,18 +113,22 @@ def create_projector_operator(dim, c1, c4):
     return np.conj(u[:, :dim])
 
 
-def weight_rotate(weight):
-    """Returns weight rotated anti-clockwise."""
-
-    return np.transpose(weight, (1, 2, 3, 0))
-
-
 def extend_and_project_transfer_matrix(t4, weight, u):
     da, di = t4.shape[:2]
     u = u.reshape((da, di, -1))
     t4u = np.tensordot(t4, np.conj(u), axes=(0, 0))  # t4u_{l d i a} = t4_{g l d} * u_{(g, i) a}
     t4uw = np.tensordot(t4u, weight, axes=([0, 2], [3, 0]))  # t4uw_{d a j k} = t4u_{l d i a} * weight_{i j k l}
     return np.tensordot(t4uw, u, axes=([0, 3], [0, 1]))  # t4_new_{a j b} = t4uw_{d a j k} * u_{(d, k), b}
+
+
+def tuple_rotation(c1, c2, c3, c4):
+    return c2, c3, c4, c1
+
+
+def weight_rotate(weight):
+    """Returns weight rotated anti-clockwise."""
+
+    return np.transpose(weight, (1, 2, 3, 0))
 
 
 def system_extension_and_projection(dim, weight, corners, transfer_matrices):
@@ -279,10 +283,6 @@ def transfer_matrix_renormalization(tm, p1, p2=None):
     tmp = np.tensordot(p1, tm, axes=([0, 1], [0, 1]))  # tmp_{a j t k} = p_{s i a} * tm_{s i j t k}
     projected_tm = np.tensordot(tmp, p2, axes=([2, 3], [0, 1]))  # projected_tm_{a j b} = tmp_{a j t k} * p_{t k b}
     return projected_tm
-
-
-def tuple_rotation(c1, c2, c3, c4):
-    return c2, c3, c4, c1
 
 
 def create_four_projectors(c1, c2, c3, c4, dim):
