@@ -394,7 +394,7 @@ def calculate_dimer_gas_profile(tensor_a, tensor_b, m, file_name='dimer_gas_prof
         dimer_tensor_b = apply_gas_operator(tensor_b, R)
 
         ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(dimer_tensor_a, dimer_tensor_b, lambdas, model))
-        energy, delta, num_of_iter = ctm.ctmrg_iteration()
+        energy, delta, _, num_of_iter = ctm.ctmrg_iteration()
 
         # energy, delta, num_of_iter = \
         #    honeycomb_expectation.coarse_graining_procedure(dimer_tensor_a, dimer_tensor_b, lambdas, m, model)
@@ -417,8 +417,8 @@ spin = "1"  # implemented options so far: spin = "1", "1/2" for Kitaev model, sp
 k = 1.
 h = 0.E-14  # external field - not introduced consistently for all settings
 # print('field', h)
-D = 4  # max virtual (bond) dimension
-m = 32  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
+D = 8  # max virtual (bond) dimension
+m = 64  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
 
 ########################################################################################################################
 
@@ -499,12 +499,12 @@ if model == "Kitaev":
                np.array([1., 1.], dtype=complex),
                np.array([1., 1.], dtype=complex)]
 
+    """
     # String-Gas state
 
-    """
     # phi1 = math.pi * 0.33
     # phi1 = math.pi * 0.32
-    phi1 = math.pi * 0.275
+    phi1 = math.pi * 0.27
     # phi1 = math.pi * 0.342
     R1 = dimer_gas_operator(spin, phi1)
     tensor_a = apply_gas_operator(tensor_a, R1)
@@ -551,22 +551,28 @@ energy = 1
 
 
 ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
-energy, delta, num_of_iter = ctm.ctmrg_iteration()
+energy, delta, correlation_length, num_of_iter = ctm.ctmrg_iteration()
 
 # energy, delta, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, m, model)
 # print('Energy of the initial state', - 3 * energy / 2, 'num_of_iter', num_of_iter)
-print('Energy of the initial state', - 3 * energy / 2, 'precision:', delta, 'num_of_iter', num_of_iter)
+print(
+    'Energy of the initial state', - 3 * energy / 2,
+    'corr length', correlation_length,
+    'precision:', delta,
+    'num_of_iter', num_of_iter
+)
 # print('Flux of the initial state', energy, 'num_of_iter', num_of_iter)
 
 
 with open(file_name, 'w') as f:
     f.write('# %s S=%s model - ITE flow\n' % (model, spin))
     f.write('# D=%d, m=%d, tau=%.8E, h=%.14E\n' % (D, m, tau, h))
-    f.write('# Iter\t\tEnergy\t\t\tConvergence\t\ttau\t\t\tCoarse-grain steps\n')
+    f.write('# Iter\t\tEnergy\t\t\tCorrelation length\tConvergence\t\ttau\t\t\tCoarse-grain steps\n')
 f = open(file_name, 'a')
 # f.write('%d\t\t%.15f\t%.15f\t%d\n' % (0, np.real(energy), np.real(mag_x), num_of_iter))
 # f.write('%d\t\t%.15f\t%d\n' % (0, - 3 * np.real(energy) / 2, num_of_iter))
-f.write('%d\t\t%.15f\t%.15f\t%.15f\t%d\n' % (0, - 3 * np.real(energy) / 2, delta, 0, num_of_iter))
+f.write('%d\t\t%.15f\t%.15f\t%.15f\t%.15f\t%d\n'
+        % (0, - 3 * np.real(energy) / 2, correlation_length, delta, 0, num_of_iter))
 # f.write('%d\t\t%.15f\t%d\n' % (0, np.real(energy), num_of_iter))
 f.close()
 
@@ -585,7 +591,7 @@ else:
 
 j = 0  # ITE-step index
 
-while tau >= tau_final and (j * refresh < 2500):
+while tau >= tau_final and (j * refresh < 1500):
 
     for i in tqdm(range(refresh)):
         tensor_a, tensor_b, lambdas = update_step(tensor_a, tensor_b, lambdas, u_gates)
@@ -613,20 +619,25 @@ while tau >= tau_final and (j * refresh < 2500):
     """
 
     ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
-    energy, delta, num_of_iter = ctm.ctmrg_iteration()
+    energy, delta, correlation_length, num_of_iter = ctm.ctmrg_iteration()
     # energy, delta, num_of_iter = \
     #    honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, m, model)
 
-    energy = - 3 * energy / 2
-    # energy = energy / 4
-
     # print('# ITE flow iter:', (j + 1) * refresh, 'energy:', energy, 'mag_x:', mag_x, 'num_of_iter:', num_of_iter)
     # print('# ITE flow iter:', (j + 1) * refresh, 'energy:', energy, 'num_of_iter:', num_of_iter)
-    print('# ITE flow iter:', (j + 1) * refresh, 'energy:', energy, 'delta:', delta, 'num_of_iter:', num_of_iter)
+    print(
+        '# ITE flow iter:', (j + 1) * refresh,
+        'energy:', - 3 * np.real(energy) / 2,
+        'correlation length', correlation_length,
+        'delta:', delta,
+        'num_of_iter:', num_of_iter
+    )
 
     f = open(file_name, 'a')
     # f.write('%d\t\t%.15f\t%.15f\t%d\n' % ((j + 1) * refresh, np.real(energy), np.real(mag_x), num_of_iter))
-    f.write('%d\t\t%.15f\t%.15f\t%.15f\t%d\n' % ((j + 1) * refresh, np.real(energy), delta, tau, num_of_iter))
+    # f.write('%d\t\t%.15f\t%.15f\t%.15f\t%d\n' % ((j + 1) * refresh, np.real(energy), delta, tau, num_of_iter))
+    f.write('%d\t\t%.15f\t%.15f\t%.15f\t%.15f\t%d\n'
+            % ((j + 1) * refresh, - 3 * np.real(energy) / 2, correlation_length, delta, tau, num_of_iter))
     f.close()
 
     s1 = abs_list_difference(lambdas[0], lambdas_memory[0])

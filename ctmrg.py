@@ -1,6 +1,6 @@
 import numpy as np
 from scipy import linalg
-# import math
+import math
 # import copy
 # import time
 # import pickle
@@ -81,6 +81,7 @@ def extend_corner4(c4, t3):
 
 def create_projector_operator(dim, c1, c4):
     """Returns (complex conjugated) projector used for renormalization of corner matrix and transfer matrix.
+
     Projector is obtained by eigenvalue decomposition of m1 + m2 (see Figure 2 in PHYSICAL REVIEW B 80, 094403 (2009)).
 
 
@@ -106,10 +107,14 @@ def create_projector_operator(dim, c1, c4):
     m2 = np.tensordot(c4, np.conj(c4), axes=(1, 1))  # m2_{ai bj} = c4_{(a i) g} * conj(c4)_{(b j) g}
     # w, u = np.linalg.eigh(m1 + m2)
     # w, u = linalg.eigh(m1 + m2, overwrite_a=True, check_finite=False)
-    _, u = linalg.eigh(m1 + m2, overwrite_a=True, check_finite=False)
-    u = np.fliplr(u)
 
-    return np.conj(u[:, :dim])
+    # w, u = linalg.eigh(m1 + m2, overwrite_a=True, check_finite=False)
+    size = m1.shape[0]
+    _, u = linalg.eigh(m1 + m2, overwrite_a=True, eigvals=(max(0, size - dim), size - 1), check_finite=False)
+
+    u = np.fliplr(u)
+    # return np.conj(u[:, :dim])
+    return np.conj(u)
 
 
 def extend_and_project_transfer_matrix(t4, weight, u):
@@ -412,6 +417,22 @@ def measurement(weight, corners, transfer_matrices, weight_imp):
     return np.tensordot(half1, half2, axes=([0, 1, 2, 3], [0, 2, 1, 3])) / norm
 
 
+def calculate_correlation_length(t):
+    """Returns correlation length."""
+
+    tm = np.tensordot(t, t, axes=(1, 1))  # tm_{a1 b1 a2 b2} = t_{a1 i b1} * t_{a1 i b2}
+    tm = np.transpose(tm, (0, 2, 1, 3))  # tm_{a1 a2 b1 b2}
+
+    d = tm.shape[0]
+    tm = tm.reshape((d * d, d * d))
+
+    size = tm.shape[0]
+    w = linalg.eigh(tm, overwrite_a=True, eigvals_only=True, eigvals=(max(0, size - 2), size - 1), check_finite=False)
+
+    correlation_length = - 1 / math.log(w[-2] / w[-1])
+    return correlation_length
+
+
 class CTMRG(object):
     """An implementation of Corner Transfer Matrix Renormalisation Group (CTMRG) algorithm."""
 
@@ -431,9 +452,14 @@ class CTMRG(object):
 
         energy = 0
         energy_mem = -1
+
+        correlation_length = 0
+        correlation_length_mem = -1
+
         i = 0
         # for i in range(num_of_steps):
-        while abs(energy - energy_mem) > 1.E-8 and i < num_of_steps:
+        # while abs(energy - energy_mem) > 1.E-8 and i < num_of_steps:
+        while abs(correlation_length - correlation_length_mem) > 1.E-6 and i < num_of_steps:
 
             self.corners, self.tms = system_extension_and_projection(self.dim, self.weight, self.corners, self.tms)
 
@@ -454,7 +480,11 @@ class CTMRG(object):
 
             energy_mem = energy
             energy = measurement(self.weight, self.corners, self.tms, self.weight_imp)
-            print('ctm iter', i, 3 * energy / 2)
+
+            correlation_length_mem = correlation_length
+            correlation_length = calculate_correlation_length(self.tms[0])
+
+            print('ctm iter', i, 3 * energy / 2, correlation_length)
             i += 1
 
-        return energy, abs(energy - energy_mem), i
+        return energy, abs(energy - energy_mem), correlation_length, i
