@@ -505,14 +505,14 @@ def calculate_global_flux_horizontal(tensor_a, tensor_b, lambdas, flip_vertical=
 
     flipped_tensor_a = tensor_a
     if flip_vertical:
-        flipped_tensor_a = apply_operator_on_virtual_index(tensor_a, constants.sz, direction='y')
+        flipped_tensor_a = apply_operator_on_virtual_index(tensor_a, constants.sz12, direction='y')
 
     ten_e = create_double_tensor(flipped_tensor_a, lambdas)
     ten_cp = create_double_tensor(flipped_tensor_a, lambdas)
 
     flipped_tensor_b = tensor_b
     if flip_horizontal:
-        flipped_tensor_b = apply_operator_on_virtual_index(tensor_b, constants.sz, direction='z')
+        flipped_tensor_b = apply_operator_on_virtual_index(tensor_b, constants.sz12, direction='z')
 
     ten_d = create_double_tensor(flipped_tensor_b, lambdas)
     ten_fp = create_double_tensor(flipped_tensor_b, lambdas)
@@ -539,14 +539,14 @@ def calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, flip_vertical=Fa
 
     flipped_tensor_a = tensor_a
     if flip_vertical:
-        flipped_tensor_a = apply_operator_on_virtual_index(tensor_a, constants.sz, direction='y')
+        flipped_tensor_a = apply_operator_on_virtual_index(tensor_a, constants.sz12, direction='y')
 
     ten_e = create_double_tensor(flipped_tensor_a, lambdas)
     ten_cp = create_double_tensor(flipped_tensor_a, lambdas)
 
     flipped_tensor_b = tensor_b
     if flip_horizontal:
-        flipped_tensor_b = apply_operator_on_virtual_index(tensor_b, constants.sz, direction='z')
+        flipped_tensor_b = apply_operator_on_virtual_index(tensor_b, constants.sz12, direction='z')
 
     ten_d = create_double_tensor(flipped_tensor_b, lambdas)
     ten_fp = create_double_tensor(flipped_tensor_b, lambdas)
