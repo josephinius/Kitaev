@@ -5,169 +5,31 @@ from scipy import linalg
 EPS = 1.E-32
 
 
-# Spin-1/2 operators
-
-sx12 = np.array([
-    [0, 1],
-    [1, 0]
-], dtype=complex)
-
-sy12 = np.array([
-    [0, -1j],
-    [1j, 0]
-], dtype=complex)
-
-sz12 = np.array([
-    [1, 0],
-    [0, -1]
-], dtype=complex)
-
-
-# Spin=1 operators
-
-SX1 = np.array([
-    [0, 1, 0],
-    [1, 0, 1],
-    [0, 1, 0]
-], dtype=complex) / math.sqrt(2)
-
-SY1 = np.array([
-    [0, 1, 0],
-    [-1, 0, 1],
-    [0, -1, 0]
-], dtype=complex) / (math.sqrt(2) * 1j)
-
-SZ1 = np.array([
-    [1, 0, 0],
-    [0, 0, 0],
-    [0, 0, -1]
-], dtype=complex)
-
-
-# Spin-3/2 operators
-
-sx32 = np.array([
-    [0, np.sqrt(3), 0, 0],
-    [np.sqrt(3), 0, 2, 0],
-    [0, 2, 0, np.sqrt(3)],
-    [0, 0, np.sqrt(3), 0]
-], dtype=complex) / 2
-
-sy32 = np.array([
-    [0, -np.sqrt(3) * 1j, 0, 0],
-    [np.sqrt(3) * 1j, 0, -2j, 0],
-    [0, 2j, 0, -np.sqrt(3) * 1j],
-    [0, 0, np.sqrt(3) * 1j, 0]
-], dtype=complex)/2
-
-sz32 = np.array([
-    [3, 0, 0, 0],
-    [0, 1, 0, 0],
-    [0, 0, -1, 0],
-    [0, 0, 0, -3]
-], dtype=complex)/2
-
-
-# Spin-2 operators
-
-SX2 = np.array([
-    [0, 2, 0, 0, 0],
-    [2, 0, np.sqrt(6), 0, 0],
-    [0, np.sqrt(6), 0, np.sqrt(6), 0],
-    [0, 0, np.sqrt(6), 0, 2],
-    [0, 0, 0, 2, 0]
-], dtype=complex) / 2
-
-SY2 = np.array([
-    [0, -2j, 0, 0, 0],
-    [2j, 0, -np.sqrt(6) * 1j, 0, 0],
-    [0, np.sqrt(6) * 1j, 0, -np.sqrt(6) * 1j, 0],
-    [0, 0, np.sqrt(6) * 1j, 0, -2j],
-    [0, 0, 0, 2j, 0]
-], dtype=complex) / 2
-
-SZ2 = np.zeros([5, 5], dtype=complex)
-SZ2[0, 0] = 2
-SZ2[1, 1] = 1
-SZ2[2, 2] = 0
-SZ2[3, 3] = -1
-SZ2[4, 4] = -2
-
-
-# Spin-5/2 operators
-
-sx52 = np.zeros([6, 6], dtype=complex)
-sx52[0, 1] = sx52[1, 0] = sx52[4, 5] = sx52[5, 4] = np.sqrt(5) / 2
-sx52[1, 2] = sx52[2, 1] = sx52[3, 4] = sx52[4, 3] = np.sqrt(2)
-sx52[2, 3] = sx52[3, 2] = 1.5
-
-sy52 = np.zeros([6, 6], dtype=complex)
-sy52[0, 1] = sy52[4, 5] = -1j * np.sqrt(5) / 2
-sy52[1, 0] = sy52[5, 4] = 1j * np.sqrt(5) / 2
-sy52[1, 2] = sy52[3, 4] = -1j * np.sqrt(2)
-sy52[2, 1] = sy52[4, 3] = 1j * np.sqrt(2)
-sy52[2, 3] = -1.5 * 1j
-sy52[3, 2] = 1.5 * 1j
-
-sz52 = np.array([5, 3, 1, -1, -3, -5], dtype=complex) / 2
-sz52 = np.diag(sz52)
-
-
-# Spin-3 operators
-
-SX3 = np.zeros([7, 7], dtype=complex)
-SY3 = np.zeros([7, 7], dtype=complex)
-SZ3 = np.zeros([7, 7], dtype=complex)
-for a in range(7):
-    if a != 0:
-        SX3[a, a - 1] = np.sqrt(4 * (2 * a) - (a + 1) * a) / 2
-        SY3[a, a - 1] = 1j * np.sqrt(4 * (2 * a) - (a + 1) * a) / 2
-    if a != 6:
-        SX3[a, a + 1] = np.sqrt(4 * (2 * a + 2) - (a + 2) * (a + 1)) / 2
-        SY3[a, a + 1] = -1j * np.sqrt(4 * (2 * a + 2) - (a + 2) * (a + 1)) / 2
-    SZ3[a, a] = 4 - (a + 1)
-
-
-# UX = linalg.expm(1j * math.pi * SX)
-# UX = exponentiation(1j * math.pi, SX)
-UX = np.array([
-    [0, 0, -1.],
-    [0, -1., 0],
-    [-1., 0, 0]
-], dtype=complex)
-# print('UX')
-# print(UX)
-
-# UY = linalg.expm(1j * math.pi * SY)
-# UY = exponentiation(1j * math.pi, SY)
-UY = np.array([
-    [0, 0, 1.],
-    [0, -1., 0],
-    [1., 0, 0]
-], dtype=complex)
-
-# UZ = linalg.expm(1j * math.pi * SZ)
-# UZ = exponentiation(1j * math.pi, SZ)
-UZ = np.array([
-    [-1., 0, 0],
-    [0, 1., 0],
-    [0, 0, -1.]
-], dtype=complex)
-
-
 # Spin=1 Kitaev model - magnetized (polarized) state
 mag_state_s1_kitaev = (- 1j * (2 + math.sqrt(3)), (1 - 1j) * (math.sqrt(2) + math.sqrt(6)) / 2, 1)
 
-
 def get_spin_operators(spin):
-    """Returns tuple of 3 spin operators and a unit matrix for given value of spin."""
-
-    if spin == "1/2":
-        return sx12, sy12, sz12, np.eye(2)
-    elif spin == "1":
-        return SX1, SY1, SZ1, np.eye(3)
-    raise ValueError('spin parameter should be a string: "1/2" or "1"')
-
+    if type(spin) == str and len(spin) > 1:
+        spinFloat = float(spin[0]) / float(spin[2])
+        s = float(spinFloat)
+    else:
+        s = float(spin)
+    d = int(2 * s + 1)
+    eye = np.eye(d, dtype=complex)
+    Sx = np.zeros([d,d], dtype=complex)
+    Sy = np.zeros([d,d], dtype=complex)
+    Sz = np.zeros([d,d], dtype=complex)
+    for a in range(d):
+        if a != 0:
+            Sx[a, a - 1] = np.sqrt((s+1) * (2 * a) - (a + 1) * a) / 2
+            Sy[a, a - 1] = 1j * np.sqrt((s+1) * (2 * a) - (a + 1) * a) / 2
+        if a != d-1:
+            Sx[a, a + 1] = np.sqrt((s+1) * (2 * a + 2) - (a + 2) * (a + 1)) / 2
+            Sy[a, a + 1] = -1j * np.sqrt((s+1) * (2 * a + 2) - (a + 2) * (a + 1)) / 2
+        Sz[a, a] = s - a
+    if s == 0.5:
+        Sx *= 2.; Sy *= 2.; Sz *= 2.
+    return Sx, Sy, Sz, eye
 
 def create_loop_gas_operator(spin):
     """Returns loop gas (LG) operator Q_LG for spin=1/2 or spin=1 Kitaev model."""
