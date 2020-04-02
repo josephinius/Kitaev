@@ -128,26 +128,20 @@ for a in range(7):
     SZ3[a, a] = 4 - (a + 1)
 
 
-# UX = linalg.expm(1j * math.pi * SX)
-# UX = exponentiation(1j * math.pi, SX)
 UX = np.array([
     [0, 0, -1.],
     [0, -1., 0],
     [-1., 0, 0]
 ], dtype=complex)
-# print('UX')
-# print(UX)
 
-# UY = linalg.expm(1j * math.pi * SY)
-# UY = exponentiation(1j * math.pi, SY)
+
 UY = np.array([
     [0, 0, 1.],
     [0, -1., 0],
     [1., 0, 0]
 ], dtype=complex)
 
-# UZ = linalg.expm(1j * math.pi * SZ)
-# UZ = exponentiation(1j * math.pi, SZ)
+
 UZ = np.array([
     [-1., 0, 0],
     [0, 1., 0],
@@ -155,7 +149,15 @@ UZ = np.array([
 ], dtype=complex)
 
 
-# Spin=1 Kitaev model - magnetized (polarized) state
+# UX = linalg.expm(1j * math.pi * SX)
+# UX = exponentiation(1j * math.pi, SX)
+# UY = linalg.expm(1j * math.pi * SY)
+# UY = exponentiation(1j * math.pi, SY)
+# UZ = linalg.expm(1j * math.pi * SZ)
+# UZ = exponentiation(1j * math.pi, SZ)
+
+
+# Spin=1 Kitaev model - magnetized (polarized) state:
 mag_state_s1_kitaev = (- 1j * (2 + math.sqrt(3)), (1 - 1j) * (math.sqrt(2) + math.sqrt(6)) / 2, 1)
 
 
@@ -166,7 +168,15 @@ def get_spin_operators(spin):
         return sx12, sy12, sz12, np.eye(2)
     elif spin == "1":
         return SX1, SY1, SZ1, np.eye(3)
-    raise ValueError('spin parameter should be a string: "1/2" or "1"')
+    elif spin == '3/2':
+        return sx32, sy32, sz32, np.eye(4)
+    elif spin == '2':
+        return SX2, SY2, SZ2, np.eye(5)
+    elif spin == '5/2':
+        return sx52, sy52, sz52, np.eye(6)
+    elif spin == '3':
+        return SX3, SY3, SZ3, np.eye(7)
+    raise ValueError('Supported spin-values: "1/2", "1", "3/2", "2", "5/2", "3".')
 
 
 def create_loop_gas_operator(spin):
@@ -174,9 +184,9 @@ def create_loop_gas_operator(spin):
 
     tau_tensor = np.zeros((2, 2, 2), dtype=complex)  # tau_tensor_{i j k}
 
-    if spin == "1/2":
+    if spin == "1/2" or spin == '3/2' or spin == '5/2':
         tau_tensor[0][0][0] = - 1j
-    if spin == "1":
+    elif spin == "1" or spin == '2' or spin == '3':
         tau_tensor[0][0][0] = 1
 
     tau_tensor[0][1][1] = tau_tensor[1][0][1] = tau_tensor[1][1][0] = 1
@@ -192,6 +202,13 @@ def create_loop_gas_operator(spin):
         u_gamma = (sx, sy, sz)
     if spin == "1":
         u_gamma = (UX, UY, UZ)
+
+    if spin == "1/2":
+        u_gamma = (sx, sy, sz)
+    elif spin == '3/2' or spin == '5/2':
+        u_gamma = tuple(map(lambda x: -1j * linalg.expm(1j * math.pi * x), (sx, sy, sz)))
+    elif spin == "1" or spin == '2' or spin == '3':
+        u_gamma = tuple(map(lambda x: linalg.expm(1j * math.pi * x), (sx, sy, sz)))
 
     for i in range(2):
         for j in range(2):
