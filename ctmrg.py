@@ -427,7 +427,8 @@ def calculate_correlation_length(t):
     tm = tm.reshape((d * d, d * d))
 
     size = tm.shape[0]
-    w = linalg.eigh(tm, overwrite_a=True, eigvals_only=True, eigvals=(max(0, size - 2), size - 1), check_finite=False)
+    # w = linalg.eigh(tm, overwrite_a=True, eigvals_only=True, eigvals=(max(0, size - 2), size - 1), check_finite=False)
+    w = linalg.eigh(tm, overwrite_a=True, eigvals_only=True, eigvals=(max(0, size - 2), size - 1))
 
     correlation_length = - 1 / math.log(w[-2] / w[-1])
     return correlation_length

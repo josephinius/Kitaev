@@ -13,6 +13,13 @@ import ctmrg
 EPS = constants.EPS
 
 
+"""
+########################################################################################################################
+                                             Construct Hamiltonian Section
+########################################################################################################################
+"""
+
+
 def construct_kitaev_hamiltonian(h, spin, k=1.):
     """Returns list of two-site Hamiltonian in [x, y, z]-direction for Kitaev model"""
 
@@ -51,6 +58,19 @@ def construct_ising_hamiltonian(h, spin, k=1.):
     sx, sy, sz, one = constants.get_spin_operators(spin)
     hamiltonian = - k * np.kron(sx, sx) - h * (np.kron(sz, one) + np.kron(one, sz)) / 2
     return np.array([hamiltonian, hamiltonian, hamiltonian]) / 2
+
+
+"""
+########################################################################################################################
+                                         End of Construct Hamiltonian Section
+########################################################################################################################
+"""
+
+"""
+########################################################################################################################
+                                             Utility Function Section
+########################################################################################################################
+"""
 
 
 def construct_ite_operator(tau, hamiltonian):
@@ -107,6 +127,79 @@ def abs_list_difference(a1, a2):
         return abs_list_difference(a2, a1)
     n = len(a1)
     return np.sum(np.abs(a1[:n] - a2[:n])) + np.sum(np.abs(a2[n:]))
+
+
+"""
+########################################################################################################################
+                                          End of Utility Function Section
+########################################################################################################################
+"""
+
+"""
+########################################################################################################################
+                                           Create Initial State Section
+########################################################################################################################
+"""
+
+
+def psi_sigma_psi(psi, sigma):
+    """Returns <psi|sigma|psi>."""
+
+    temp = np.tensordot(sigma, psi.reshape(-1), axes=(1, 0))
+    return np.tensordot(np.conj(psi.reshape(-1)), temp, axes=(0, 0))
+
+
+def psi_zero_test(psi, spin):
+    """Returns <psi|(sx + sy + sz)|psi> - 1/sqrt(3).
+
+    Note: For magnetized state, we have <psi|(sx + sy + sz)|psi> = 1/sqrt(3).
+    """
+
+    sx, sy, sz, _ = constants.get_spin_operators(spin)
+    sigmas = sx, sy, sz
+    factor = {"1/2": 1., "1": 1., "3/2": 3 / 2, "2": 2., "5/2": 5 / 2, "3": 3.}[spin]
+    return sum(abs(psi_sigma_psi(psi, s) - 1 / math.sqrt(3) * factor) for s in sigmas)
+
+
+def prepare_magnetized_state(tensor, spin):
+    """Returns magnetized state (i.e. polarized state) |0> = (1 1 1).
+
+    Note: We use analytical form of magnetized state for spin=1 Kitaev model.
+    """
+
+    print('In prepare_magnetized_state')
+
+    # step = 100.
+    step = 10.
+
+    sx, sy, sz, _ = constants.get_spin_operators(spin)
+    op = construct_ite_operator(- step, sx + sy + sz)
+
+    i = 0
+    while psi_zero_test(tensor, spin) > 1.E-15:
+        tensor = np.tensordot(op, tensor, axes=(1, 0))
+        # tensor = tensor / math.sqrt(np.real(complex_inner_product(tensor)))
+        tensor = tensor / linalg.norm(tensor)
+        if i % 10 == 0:
+            print(i, psi_zero_test(tensor, spin))
+        i += 1
+
+    print(i, psi_zero_test(tensor, spin))
+
+    return tensor
+
+
+"""
+########################################################################################################################
+                                         End of Create Initial State Section
+########################################################################################################################
+"""
+
+"""
+########################################################################################################################
+                                                    ITE Section
+########################################################################################################################
+"""
 
 
 def pair_contraction(ten_a, ten_b, lambdas):
@@ -229,49 +322,6 @@ def update_step(ten_a, ten_b, lambdas, u_gates=None):
     return ten_a, ten_b, lambdas
 
 
-def psi_sigma_psi(psi, sigma):
-    """Returns <psi|sigma|psi>."""
-
-    temp = np.tensordot(sigma, psi.reshape(-1), axes=(1, 0))
-    return np.tensordot(np.conj(psi.reshape(-1)), temp, axes=(0, 0))
-
-
-def psi_zero_test(psi, spin):
-    """Returns <psi|(sx + sy + sz)|psi> - 1/sqrt(3).
-
-    Note: For magnetized state, we have <psi|(sx + sy + sz)|psi> = 1/sqrt(3).
-    """
-
-    sx, sy, sz, _ = constants.get_spin_operators(spin)
-    sigmas = sx, sy, sz
-    return sum(abs(psi_sigma_psi(psi, s) - 1 / math.sqrt(3)) for s in sigmas)
-
-
-def prepare_magnetized_state(tensor, spin):
-    """Returns magnetized state (i.e. polarized state) |0> = (1 1 1).
-
-    Note: We use analytical form of magnetized state for spin=1 Kitaev model.
-    """
-
-    print('In prepare_magnetized_state')
-
-    step = 100.
-    sx, sy, sz, _ = constants.get_spin_operators(spin)
-    op = construct_ite_operator(- step, sx + sy + sz)
-
-    i = 0
-    while psi_zero_test(tensor, spin) > 1.E-15:
-        tensor = np.tensordot(op, tensor, axes=(1, 0))
-        tensor = tensor / math.sqrt(np.real(complex_inner_product(tensor)))
-        if i % 10 == 0:
-            print(i, psi_zero_test(tensor, spin))
-        i += 1
-
-    print(i, psi_zero_test(tensor, spin))
-
-    return tensor
-
-
 def kitaev_spin_one_half_ite_operator(tau):
     pass
 
@@ -326,10 +376,25 @@ def kitaev_spin_one_ite_operator(tau):
     return u_gate_x, u_gate_y, u_gate_z
 
 
+"""
+########################################################################################################################
+                                                End of ITE Section
+########################################################################################################################
+"""
+
+"""
+########################################################################################################################
+                                                 Dimer Gas Section
+########################################################################################################################
+"""
+
+
 def dimer_gas_operator(spin, phi):
     """Returns dimer gas operator (or variational ansatz) R for spin=1/2 or spin=1 Kitaev model."""
 
     zeta = np.zeros((2, 2, 2), dtype=complex)  # tau_tensor_{i j k}
+
+    """
     if spin == "1":
         zeta[0][0][0] = math.cos(phi)
         zeta[1][0][0] = zeta[0][1][0] = zeta[0][0][1] = math.sin(phi)
@@ -340,16 +405,22 @@ def dimer_gas_operator(spin, phi):
         # Variational Ansatz:
         zeta[0][0][0] = math.cos(phi)
         zeta[1][0][0] = zeta[0][1][0] = zeta[0][0][1] = math.sin(phi)
+    """
+
+    zeta[0][0][0] = math.cos(phi)
+    zeta[1][0][0] = zeta[0][1][0] = zeta[0][0][1] = math.sin(phi)
 
     sx, sy, sz, one = constants.get_spin_operators(spin)
     d = one.shape[0]
-    R = np.zeros((d, d, 2, 2, 2), dtype=complex)  # Q_LG_{s s' i j k}
+    R = np.zeros((d, d, 2, 2, 2), dtype=complex)  # R_DG_{s s' i j k}
 
-    p = None
+    p = 1
+    """
     if spin == "1":
         p = 1
     elif spin == "1/2":
         p = 0
+    """
 
     for i in range(2):
         for j in range(2):
@@ -374,8 +445,16 @@ def calculate_dimer_gas_profile(tensor_a, tensor_b, m, file_name='dimer_gas_prof
     spin = None
     if d == 2:
         spin = "1/2"
-    if d == 3:
+    elif d == 3:
         spin = "1"
+    elif d == 4:
+        spin = "3/2"
+    elif d == 5:
+        spin = "2"
+    elif d == 6:
+        spin = "5/2"
+    elif d == 7:
+        spin = "3"
 
     dim = tensor_a.shape[1] * 2  # virtual (bond) dimension
 
@@ -393,11 +472,18 @@ def calculate_dimer_gas_profile(tensor_a, tensor_b, m, file_name='dimer_gas_prof
         dimer_tensor_a = apply_gas_operator(tensor_a, R)
         dimer_tensor_b = apply_gas_operator(tensor_b, R)
 
-        ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(dimer_tensor_a, dimer_tensor_b, lambdas, model))
-        energy, delta, _, num_of_iter = ctm.ctmrg_iteration()
-
+        # ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(dimer_tensor_a, dimer_tensor_b, lambdas, model))
+        # energy, delta, _, num_of_iter = ctm.ctmrg_iteration()
         # energy, delta, num_of_iter = \
         #    honeycomb_expectation.coarse_graining_procedure(dimer_tensor_a, dimer_tensor_b, lambdas, m, model)
+
+        if method == 'CTMRG':
+            ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(dimer_tensor_a, dimer_tensor_b, lambdas, model))
+            energy, delta, _, num_of_iter = ctm.ctmrg_iteration()
+            energy = -energy
+        if method == 'TRG':
+            energy, delta, num_of_iter = \
+                honeycomb_expectation.coarse_graining_procedure(dimer_tensor_a, dimer_tensor_b, lambdas, m, model)
 
         print('Energy', - 3 * energy / 2, 'num_of_iter', num_of_iter)
         f = open(file_name, 'a')
@@ -408,28 +494,63 @@ def calculate_dimer_gas_profile(tensor_a, tensor_b, m, file_name='dimer_gas_prof
         f.close()
 
 
+"""
 ########################################################################################################################
+                                            End of Dimer Gas Section
+########################################################################################################################
+"""
+
+"""
+########################################################################################################################
+                                           Parameters Setting Section
+########################################################################################################################
+"""
 
 model = "Kitaev"
 # model = "Heisenberg"
 
-spin = "1"  # implemented options so far: spin = "1", "1/2" for Kitaev model, spin = "1/2" for Heisenberg model
+spin = "5/2"  # implemented options so far: spin = "1", "1/2" for Kitaev model, spin = "1/2" for Heisenberg model
 k = 1.
 h = 0.E-14  # external field - not introduced consistently for all settings
 # print('field', h)
-D = 8  # max virtual (bond) dimension
-m = 64  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
+D = 4  # max virtual (bond) dimension
+m = 16  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
 
+method = 'CTMRG'  # TRG or CTMRG
+dojob = 'ITE'  # Dimer or ITE
+
+# Only for ITE:
+# tau_initial = 4.E-3
+tau_initial = 1.E-2
+tau_final = 1.E-6
+refresh = 100
+file_name = 'kitaev.txt'  # output file
+
+"""
 ########################################################################################################################
+                                          End of Parameters Setting Section
+########################################################################################################################
+"""
+
 
 d = None  # physical dimension
+
+# TODO: make a function for setting d (used across multiple files)!
 
 if spin == "1/2":
     d = 2
 elif spin == "1":
     d = 3
+elif spin == "3/2":
+    d = 4
+elif spin == "2":
+    d = 5
+elif spin == "5/2":
+    d = 6
+elif spin == "3":
+    d = 7
 else:
-    raise ValueError('spin should be either "1" or "1/2" (specified as string type)')
+    raise ValueError('Supported spin-values: "1/2", "1", "3/2", "2", "5/2", "3".')
 
 if model == "Kitaev":
     construct_hamiltonian = construct_kitaev_hamiltonian
@@ -453,6 +574,12 @@ lambdas = [np.array([1., ], dtype=complex),
            np.array([1., ], dtype=complex)]
 
 if model == "Kitaev":
+    tensor_a = np.ones((d, xi, xi, xi), dtype=complex)
+    tensor_b = np.ones((d, xi, xi, xi), dtype=complex)
+    tensor_a = prepare_magnetized_state(tensor_a, spin)
+    tensor_b = prepare_magnetized_state(tensor_b, spin)
+
+    """
     if spin == "1":
         # Spin=1 Kitaev model polarized state
         for i, x in enumerate(constants.mag_state_s1_kitaev):
@@ -463,6 +590,7 @@ if model == "Kitaev":
         tensor_b = np.ones((d, xi, xi, xi), dtype=complex)
         tensor_a = prepare_magnetized_state(tensor_a, spin)
         tensor_b = prepare_magnetized_state(tensor_b, spin)
+    """
 
 if model == "Heisenberg":
     tensor_a[0][0][0][0] = 1.
@@ -527,40 +655,42 @@ if model == "Kitaev":
                np.ones((8,), dtype=complex)]
     """
 
-    # calculate_dimer_gas_profile(tensor_a, tensor_b, m)
+if dojob == 'Dimer':
+    calculate_dimer_gas_profile(tensor_a, tensor_b, m)
+    exit()
 
 # tensor_a = tensor_a / math.sqrt(np.real(calculate_tensor_norm(tensor_a)))
 # tensor_b = tensor_b / math.sqrt(np.real(calculate_tensor_norm(tensor_b)))
 
 # print(tensor_a.shape)
 
-# tau_initial = 4.E-3
-tau_initial = 1.E-2
-tau_final = 1.E-6
 # u_gates = [u_gate_x, u_gate_y, u_gate_z]
 # u_gates = np.array([construct_ITE_operator(tau, hamiltonian).reshape(d, d, d, d) for hamiltonian in H])
 
 tau = tau_initial
 # tau = tau_final
 
-refresh = 100
-
-file_name = 'kitaev.txt'  # output file
-
 energy = 1
 
-
-ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
-energy, delta, correlation_length, num_of_iter = ctm.ctmrg_iteration()
-
+# ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
+# energy, delta, correlation_length, num_of_iter = ctm.ctmrg_iteration()
 # energy, delta, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, m, model)
 # print('Energy of the initial state', - 3 * energy / 2, 'num_of_iter', num_of_iter)
-print(
-    'Energy of the initial state', - 3 * energy / 2,
-    'corr length', correlation_length,
-    'precision:', delta,
-    'num_of_iter', num_of_iter
-)
+
+if method == 'CTMRG':
+    ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
+    energy, delta, correlation_length, num_of_iter = ctm.ctmrg_iteration()
+    energy = -energy
+    print(
+        'Energy of the initial state', - 3 * energy / 2,
+        'corr length', correlation_length,
+        'precision:', delta,
+        'num_of_iter', num_of_iter
+    )
+elif method == 'TRG':
+    energy, delta, num_of_iter = honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, m, model)
+    print('Energy of the initial state', - 3 * energy / 2, 'precision', delta, 'num_of_iter', num_of_iter)
+
 # print('Flux of the initial state', energy, 'num_of_iter', num_of_iter)
 
 
@@ -584,7 +714,7 @@ u_gates = None
 if model == "Kitaev" and spin == "1":
     u_gates = [exp_ham.reshape(d, d, d, d) for exp_ham in kitaev_spin_one_ite_operator(tau)]  # analytic form
 else:
-    # Heisenberg and spin=1/2 Kitaev
+    # Heisenberg and/or Kitaev model with spin != 1
     H = construct_hamiltonian(h, spin, k)
     u_gates = np.array([construct_ite_operator(tau, hamiltonian).reshape(d, d, d, d) for hamiltonian in H])
 
@@ -618,20 +748,34 @@ while tau >= tau_final and (j * refresh < 1500):
         honeycomb_expectation.coarse_graining_procedure(tensor_a_copy, tensor_b_copy, lambdas_copy, m, model)
     """
 
-    ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
-    energy, delta, correlation_length, num_of_iter = ctm.ctmrg_iteration()
+    if method == 'CTMRG':
+        ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
+        energy, delta, correlation_length, num_of_iter = ctm.ctmrg_iteration()
+        energy = -energy
+        print(
+            '# ITE flow iter:', (j + 1) * refresh,
+            'energy:', - 3 * np.real(energy) / 2,
+            'correlation length', correlation_length,
+            'delta:', delta,
+            'num_of_iter:', num_of_iter
+        )
+    elif method == 'TRG':
+        energy, delta, num_of_iter = \
+            honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, m, model)
+        print(
+            '# ITE flow iter:', (j + 1) * refresh,
+            'energy:', - 3 * np.real(energy) / 2,
+            'delta:', delta,
+            'num_of_iter:', num_of_iter
+        )
+
+    # ctm = ctmrg.CTMRG(m, *honeycomb_expectation.export_to_ctmrg(tensor_a, tensor_b, lambdas, model))
+    # energy, delta, correlation_length, num_of_iter = ctm.ctmrg_iteration()
     # energy, delta, num_of_iter = \
     #    honeycomb_expectation.coarse_graining_procedure(tensor_a, tensor_b, lambdas, m, model)
 
     # print('# ITE flow iter:', (j + 1) * refresh, 'energy:', energy, 'mag_x:', mag_x, 'num_of_iter:', num_of_iter)
     # print('# ITE flow iter:', (j + 1) * refresh, 'energy:', energy, 'num_of_iter:', num_of_iter)
-    print(
-        '# ITE flow iter:', (j + 1) * refresh,
-        'energy:', - 3 * np.real(energy) / 2,
-        'correlation length', correlation_length,
-        'delta:', delta,
-        'num_of_iter:', num_of_iter
-    )
 
     f = open(file_name, 'a')
     # f.write('%d\t\t%.15f\t%.15f\t%d\n' % ((j + 1) * refresh, np.real(energy), np.real(mag_x), num_of_iter))
