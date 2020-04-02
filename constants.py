@@ -200,11 +200,6 @@ def create_loop_gas_operator(spin):
 
     if spin == "1/2":
         u_gamma = (sx, sy, sz)
-    if spin == "1":
-        u_gamma = (UX, UY, UZ)
-
-    if spin == "1/2":
-        u_gamma = (sx, sy, sz)
     elif spin == '3/2' or spin == '5/2':
         u_gamma = tuple(map(lambda x: -1j * linalg.expm(1j * math.pi * x), (sx, sy, sz)))
     elif spin == "1" or spin == '2' or spin == '3':
