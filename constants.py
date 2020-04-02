@@ -27,7 +27,7 @@ def get_spin_operators(spin):
             Sx[a, a + 1] = np.sqrt((s+1) * (2 * a + 2) - (a + 2) * (a + 1)) / 2
             Sy[a, a + 1] = -1j * np.sqrt((s+1) * (2 * a + 2) - (a + 2) * (a + 1)) / 2
         Sz[a, a] = s - a
-    if s == 0.5:
+    if spin == '1/2':
         Sx *= 2.; Sy *= 2.; Sz *= 2.
     return Sx, Sy, Sz, eye
 
