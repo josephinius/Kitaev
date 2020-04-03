@@ -18,7 +18,7 @@ class TestConstants(unittest.TestCase):
 
         for spin in ('1/2', '1', '3/2', '2', '5/2', '3'):
             for o1, o2 in zip(constants.get_spin_operators(spin), spin_to_ops[spin]):
-                self.assertTrue(np.allclose(o1, o2, atol=1.E-15))
+                self.assertTrue(np.allclose(o1, o2, atol=1.E-16))
 
 
 if __name__ == '__main__':
