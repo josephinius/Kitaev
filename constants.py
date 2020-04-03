@@ -9,9 +9,7 @@ def get_spin_operators(spin):
     """Returns tuple of 3 spin operators and a unit matrix for given value of spin."""
 
     assert isinstance(spin, str)
-
     s = int(spin[0]) / int(spin[2]) if len(spin) > 1 else int(spin)
-
     d = int(2 * s + 1)
     eye = np.eye(d, dtype=complex)
 
