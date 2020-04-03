@@ -5,7 +5,57 @@ from scipy import linalg
 EPS = 1.E-32
 
 
-# Spin=1 Kitaev model - magnetized (polarized) state
+def get_spin_operators(spin):
+    """Returns tuple of 3 spin operators and a unit matrix for given value of spin."""
+
+    if type(spin) == str and len(spin) > 1:
+        spin_float = float(spin[0]) / float(spin[2])
+        s = float(spin_float)
+    else:
+        s = float(spin)
+
+    d = int(2 * s + 1)
+    eye = np.eye(d, dtype=complex)
+
+    sx = np.zeros([d, d], dtype=complex)
+    Sy = np.zeros([d, d], dtype=complex)
+    Sz = np.zeros([d, d], dtype=complex)
+
+    for a in range(d):
+        if a != 0:
+            sx[a, a - 1] = np.sqrt((s + 1) * (2 * a) - (a + 1) * a) / 2
+            Sy[a, a - 1] = 1j * np.sqrt((s + 1) * (2 * a) - (a + 1) * a) / 2
+        if a != d - 1:
+            sx[a, a + 1] = np.sqrt((s + 1) * (2 * a + 2) - (a + 2) * (a + 1)) / 2
+            Sy[a, a + 1] = -1j * np.sqrt((s + 1) * (2 * a + 2) - (a + 2) * (a + 1)) / 2
+        Sz[a, a] = s - a
+
+    if spin == '1/2':
+        sx *= 2
+        Sy *= 2
+        Sz *= 2
+
+    return sx, Sy, Sz, eye
+
+
+"""
+def get_spin_operators(spin):
+    # Returns tuple of 3 spin operators and a unit matrix for given value of spin.
+    if spin == "1/2":
+        return sx12, sy12, sz12, np.eye(2)
+    elif spin == "1":
+        return SX1, SY1, SZ1, np.eye(3)
+    elif spin == '3/2':
+        return sx32, sy32, sz32, np.eye(4)
+    elif spin == '2':
+        return SX2, SY2, SZ2, np.eye(5)
+    elif spin == '5/2':
+        return sx52, sy52, sz52, np.eye(6)
+    elif spin == '3':
+        return SX3, SY3, SZ3, np.eye(7)
+    raise ValueError('Supported spin-values: "1/2", "1", "3/2", "2", "5/2", "3".')
+"""
+
 # Spin-1/2 operators
 
 sx12 = np.array([
@@ -160,45 +210,6 @@ UZ = np.array([
 
 # Spin=1 Kitaev model - magnetized (polarized) state:
 mag_state_s1_kitaev = (- 1j * (2 + math.sqrt(3)), (1 - 1j) * (math.sqrt(2) + math.sqrt(6)) / 2, 1)
-
-def get_spin_operators(spin):
-    if type(spin) == str and len(spin) > 1:
-        spinFloat = float(spin[0]) / float(spin[2])
-        s = float(spinFloat)
-    else:
-        s = float(spin)
-    d = int(2 * s + 1)
-    eye = np.eye(d, dtype=complex)
-    Sx = np.zeros([d,d], dtype=complex)
-    Sy = np.zeros([d,d], dtype=complex)
-    Sz = np.zeros([d,d], dtype=complex)
-    for a in range(d):
-        if a != 0:
-            Sx[a, a - 1] = np.sqrt((s+1) * (2 * a) - (a + 1) * a) / 2
-            Sy[a, a - 1] = 1j * np.sqrt((s+1) * (2 * a) - (a + 1) * a) / 2
-        if a != d-1:
-            Sx[a, a + 1] = np.sqrt((s+1) * (2 * a + 2) - (a + 2) * (a + 1)) / 2
-            Sy[a, a + 1] = -1j * np.sqrt((s+1) * (2 * a + 2) - (a + 2) * (a + 1)) / 2
-        Sz[a, a] = s - a
-    if spin == '1/2':
-        Sx *= 2.; Sy *= 2.; Sz *= 2.
-    return Sx, Sy, Sz, eye
-  
-    """Returns tuple of 3 spin operators and a unit matrix for given value of spin."""
-
-    if spin == "1/2":
-        return sx12, sy12, sz12, np.eye(2)
-    elif spin == "1":
-        return SX1, SY1, SZ1, np.eye(3)
-    elif spin == '3/2':
-        return sx32, sy32, sz32, np.eye(4)
-    elif spin == '2':
-        return SX2, SY2, SZ2, np.eye(5)
-    elif spin == '5/2':
-        return sx52, sy52, sz52, np.eye(6)
-    elif spin == '3':
-        return SX3, SY3, SZ3, np.eye(7)
-    raise ValueError('Supported spin-values: "1/2", "1", "3/2", "2", "5/2", "3".')
 
 
 def create_loop_gas_operator(spin):
