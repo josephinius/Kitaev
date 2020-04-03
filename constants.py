@@ -36,24 +36,6 @@ def get_spin_operators(spin):
     return sx, sy, sz, eye
 
 
-"""
-def get_spin_operators(spin):
-    # Returns tuple of 3 spin operators and a unit matrix for given value of spin.
-    if spin == "1/2":
-        return sx12, sy12, sz12, np.eye(2)
-    elif spin == "1":
-        return SX1, SY1, SZ1, np.eye(3)
-    elif spin == '3/2':
-        return sx32, sy32, sz32, np.eye(4)
-    elif spin == '2':
-        return SX2, SY2, SZ2, np.eye(5)
-    elif spin == '5/2':
-        return sx52, sy52, sz52, np.eye(6)
-    elif spin == '3':
-        return SX3, SY3, SZ3, np.eye(7)
-    raise ValueError('Supported spin-values: "1/2", "1", "3/2", "2", "5/2", "3".')
-"""
-
 # Spin-1/2 operators
 
 sx12 = np.array([
