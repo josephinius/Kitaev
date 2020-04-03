@@ -68,11 +68,11 @@ def deformation(pair, dim_cut):
     pair = pair.reshape((d1 * d2, d3 * d4))
 
     # 3) SVD
-    print("SVD... (honeycomb expectation)")
+    # print("SVD... (honeycomb expectation)")
     x, ss, y = linalg.svd(pair, lapack_driver='gesdd')  # use 'gesvd' or 'gesdd'
     # x, ss, y = linalg.svd(pair, lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
     # x, ss, y = randomized_svd(pair, n_components=120, n_iter=5, random_state=None)
-    print("SVD done")
+    # print("SVD done")
     # print('ss', ss)
 
     dim_new = min(ss.shape[0], dim_cut)
@@ -608,8 +608,17 @@ def init_weight_impurity_ctmrg(ten_a, ten_b, lam, model):
     spin = None
     if d == 2:
         spin = "1/2"
-    if d == 3:
+    elif d == 3:
         spin = "1"
+    elif d == 4:
+        spin = "3/2"
+    elif d == 5:
+        spin = "2"
+    elif d == 6:
+        spin = "5/2"
+    elif d == 7:
+        spin = "3"
+
     sx, sy, sz, _ = constants.get_spin_operators(spin)
     if model == "Heisenberg":
         op = (sx / 2, sy / 2, sz / 2)
@@ -661,12 +670,19 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, dim_cut, model="Kitae
 
     # dim_cut = D * D
     d = tensor_a.shape[0]  # physical dimension
-
     spin = None
     if d == 2:
         spin = "1/2"
-    if d == 3:
+    elif d == 3:
         spin = "1"
+    elif d == 4:
+        spin = "3/2"
+    elif d == 5:
+        spin = "2"
+    elif d == 6:
+        spin = "5/2"
+    elif d == 7:
+        spin = "3"
 
     # norm_a = np.max(np.abs(tensor_a))
     # norm_b = np.max(np.abs(tensor_b))
@@ -702,12 +718,20 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, dim_cut, model="Kitae
     # dimp_ten_b_mag = copy.deepcopy(double_tensor_b)
 
     double_impurity_6ring = [None] * 6  # A, B, C, D, E, F - double impurity tensors
+
     spin_rotation_operators = None
+
     if spin == "1/2":
-        spin_rotation_operators = (sz, sy, sx)
+        spin_rotation_operators = (sx, sy, sz)
+    elif spin == '3/2' or spin == '5/2':
+        spin_rotation_operators = tuple(map(lambda x: -1j * linalg.expm(1j * math.pi * x), (sx, sy, sz)))
+    elif spin == "1" or spin == '2' or spin == '3':
+        spin_rotation_operators = tuple(map(lambda x: linalg.expm(1j * math.pi * x), (sx, sy, sz)))
+    """
     if spin == "1":
         spin_rotation_operators = (constants.UZ, constants.UY, constants.UX)
-        # spin_rotation_operators = (sz, sy, sx)
+    """
+
     tensors = (tensor_a, tensor_b)
     for i in range(6):  # impurity_6_ring initialization used for flux calculation
         double_impurity_6ring[i] = create_double_impurity(tensors[i % 2], lambdas, spin_rotation_operators[i % 3])
