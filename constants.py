@@ -8,11 +8,9 @@ EPS = 1.E-32
 def get_spin_operators(spin):
     """Returns tuple of 3 spin operators and a unit matrix for given value of spin."""
 
-    if type(spin) == str and len(spin) > 1:
-        spin_float = float(spin[0]) / float(spin[2])
-        s = float(spin_float)
-    else:
-        s = float(spin)
+    assert isinstance(spin, str)
+
+    s = int(spin[0]) / int(spin[2]) if len(spin) > 1 else int(spin)
 
     d = int(2 * s + 1)
     eye = np.eye(d, dtype=complex)
