@@ -18,24 +18,24 @@ def get_spin_operators(spin):
     eye = np.eye(d, dtype=complex)
 
     sx = np.zeros([d, d], dtype=complex)
-    Sy = np.zeros([d, d], dtype=complex)
-    Sz = np.zeros([d, d], dtype=complex)
+    sy = np.zeros([d, d], dtype=complex)
+    sz = np.zeros([d, d], dtype=complex)
 
     for a in range(d):
         if a != 0:
             sx[a, a - 1] = np.sqrt((s + 1) * (2 * a) - (a + 1) * a) / 2
-            Sy[a, a - 1] = 1j * np.sqrt((s + 1) * (2 * a) - (a + 1) * a) / 2
+            sy[a, a - 1] = 1j * np.sqrt((s + 1) * (2 * a) - (a + 1) * a) / 2
         if a != d - 1:
             sx[a, a + 1] = np.sqrt((s + 1) * (2 * a + 2) - (a + 2) * (a + 1)) / 2
-            Sy[a, a + 1] = -1j * np.sqrt((s + 1) * (2 * a + 2) - (a + 2) * (a + 1)) / 2
-        Sz[a, a] = s - a
+            sy[a, a + 1] = -1j * np.sqrt((s + 1) * (2 * a + 2) - (a + 2) * (a + 1)) / 2
+        sz[a, a] = s - a
 
     if spin == '1/2':
         sx *= 2
-        Sy *= 2
-        Sz *= 2
+        sy *= 2
+        sz *= 2
 
-    return sx, Sy, Sz, eye
+    return sx, sy, sz, eye
 
 
 """
