@@ -417,21 +417,32 @@ def measurement(weight, corners, transfer_matrices, weight_imp):
     return np.tensordot(half1, half2, axes=([0, 1, 2, 3], [0, 2, 1, 3])) / norm
 
 
-def calculate_correlation_length(t):
+def calculate_correlation_length(t1, t3):  # or use (t2, t4)
     """Returns correlation length."""
 
-    tm = np.tensordot(t, t, axes=(1, 1))  # tm_{a1 b1 a2 b2} = t_{a1 i b1} * t_{a1 i b2}
-    tm = np.transpose(tm, (0, 2, 1, 3))  # tm_{a1 a2 b1 b2}
-
+    tm = np.tensordot(t1, t3, axes=(1, 1))  # tm_{a1 b1 a2 b2} = t1_{a1 i b1} * t3_{a2 i b2}
+    tm = np.transpose(tm, (0, 3, 1, 2))  # tm_{a1 b2 b1 a2}
     d = tm.shape[0]
     tm = tm.reshape((d * d, d * d))
+    size = tm.shape[0]
+    w = linalg.eigh(tm, overwrite_a=True, eigvals_only=True, eigvals=(max(0, size - 2), size - 1), check_finite=False)
+    correlation_length = - 1 / math.log(w[-2] / w[-1])
+    return correlation_length
 
+
+"""
+def calculate_correlation_length(t):
+    # Returns correlation length.
+    tm = np.tensordot(t, t, axes=(1, 1))  # tm_{a1 b1 a2 b2} = t_{a1 i b1} * t_{a1 i b2}
+    tm = np.transpose(tm, (0, 2, 1, 3))  # tm_{a1 a2 b1 b2}
+    d = tm.shape[0]
+    tm = tm.reshape((d * d, d * d))
     size = tm.shape[0]
     # w = linalg.eigh(tm, overwrite_a=True, eigvals_only=True, eigvals=(max(0, size - 2), size - 1), check_finite=False)
     w = linalg.eigh(tm, overwrite_a=True, eigvals_only=True, eigvals=(max(0, size - 2), size - 1))
-
     correlation_length = - 1 / math.log(w[-2] / w[-1])
     return correlation_length
+"""
 
 
 class CTMRG(object):
@@ -447,6 +458,22 @@ class CTMRG(object):
         self.weight_imp = weight_imp
         self.iter_counter = 0
 
+    def ctmrg_extend_and_renormalize(self, num_of_steps=1, dim=None):
+        """Performs num_of_steps iterations of ctmrg algorithm for given cut-off dim and returns nothing."""
+
+        if dim is None:
+            dim = self.dim
+
+        for _ in range(num_of_steps):
+            self.corners, self.tms = system_extension_and_projection(dim, self.weight, self.corners, self.tms)
+            for j in range(4):
+                corner_norm = np.max(np.abs(self.corners[j]))
+                self.corners[j] /= corner_norm
+                tm_norm = np.max(np.abs(self.tms[j]))
+                self.tms[j] /= tm_norm
+                # print('corner_norm', corner_norm)
+                # print('tm_norm', tm_norm)
+
     def ctmrg_iteration(self, num_of_steps=20):
         """Performs at most num_of_steps iterations of ctmrg algorithm and prints energy after each iteration.
         Returns the final energy, "precision", and number of iterations."""
@@ -457,20 +484,16 @@ class CTMRG(object):
         correlation_length = 0
         correlation_length_mem = -1
 
+        # Procedure for stabilizing corners and tms
+        for dimension in range(2, self.dim):
+            self.ctmrg_extend_and_renormalize(num_of_steps=100, dim=dimension)
+
         i = 0
         # for i in range(num_of_steps):
         # while abs(energy - energy_mem) > 1.E-8 and i < num_of_steps:
         while abs(correlation_length - correlation_length_mem) > 1.E-6 and i < num_of_steps:
 
-            self.corners, self.tms = system_extension_and_projection(self.dim, self.weight, self.corners, self.tms)
-
-            for j in range(4):
-                corner_norm = np.max(np.abs(self.corners[j]))
-                self.corners[j] /= corner_norm
-                # print('corner_norm', corner_norm)
-                tm_norm = np.max(np.abs(self.tms[j]))
-                self.tms[j] /= tm_norm
-                # print('tm_norm', tm_norm)
+            self.ctmrg_extend_and_renormalize()
 
             """
             assert np.allclose(self.corners[0], self.corners[2])
@@ -483,8 +506,9 @@ class CTMRG(object):
             energy = measurement(self.weight, self.corners, self.tms, self.weight_imp)
 
             correlation_length_mem = correlation_length
-            correlation_length = calculate_correlation_length(self.tms[0])
-
+            correlation_length = calculate_correlation_length(self.tms[1], self.tms[3])
+            # correlation_length = calculate_correlation_length(self.tms[0], self.tms[2])
+            print('corr. length t1-t3:', calculate_correlation_length(self.tms[0], self.tms[2]))
             print('ctm iter', i, 3 * energy / 2, correlation_length)
             i += 1
 
