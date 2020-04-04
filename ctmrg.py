@@ -485,8 +485,9 @@ class CTMRG(object):
         correlation_length_mem = -1
 
         # Procedure for stabilizing corners and tms
-        for dimension in range(2, self.dim):
-            self.ctmrg_extend_and_renormalize(num_of_steps=100, dim=dimension)
+        for dimension in range(2, self.dim, 2):
+            # TODO: How to find optimal value of num_of_steps?
+            self.ctmrg_extend_and_renormalize(num_of_steps=32, dim=dimension)
 
         i = 0
         # for i in range(num_of_steps):

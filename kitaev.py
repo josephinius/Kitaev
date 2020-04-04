@@ -479,12 +479,12 @@ def calculate_dimer_gas_profile(tensor_a, tensor_b, m, file_name='dimer_gas_prof
 model = "Kitaev"
 # model = "Heisenberg"
 
-spin = "5/2"
+spin = "1"
 k = 1.
 h = 0.E-14  # external field - not introduced consistently for all settings
 # print('field', h)
 D = 4  # max virtual (bond) dimension
-m = 16  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
+m = 40  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
 
 method = 'CTMRG'  # TRG or CTMRG
 dojob = 'ITE'  # Dimer or ITE
