@@ -417,20 +417,8 @@ def dimer_gas_operator(spin, phi):
 def calculate_dimer_gas_profile(tensor_a, tensor_b, m, file_name='dimer_gas_profile.txt'):
     """Calculates energy for dimer gas state for values of variational parameter in fixed interval."""
 
-    d = tensor_a.shape[0]  # physical dimension
-    spin = None
-    if d == 2:
-        spin = "1/2"
-    elif d == 3:
-        spin = "1"
-    elif d == 4:
-        spin = "3/2"
-    elif d == 5:
-        spin = "2"
-    elif d == 6:
-        spin = "5/2"
-    elif d == 7:
-        spin = "3"
+    # d = tensor_a.shape[0]  # physical dimension
+    spin = constants.physical_dimension_to_spin(tensor_a.shape[0])
 
     dim = tensor_a.shape[1] * 2  # virtual (bond) dimension
 
@@ -484,7 +472,7 @@ k = 1.
 h = 0.E-14  # external field - not introduced consistently for all settings
 # print('field', h)
 D = 4  # max virtual (bond) dimension
-m = 40  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
+m = 32  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
 
 method = 'CTMRG'  # TRG or CTMRG
 dojob = 'ITE'  # Dimer or ITE
@@ -649,12 +637,20 @@ elif method == 'TRG':
 with open(file_name, 'w') as f:
     f.write('# %s S=%s model - ITE flow\n' % (model, spin))
     f.write('# D=%d, m=%d, tau=%.8E, h=%.14E\n' % (D, m, tau, h))
-    f.write('# Iter\t\tEnergy\t\t\tCorrelation length\tConvergence\t\ttau\t\t\tCoarse-grain steps\n')
+    if method == 'CTMRG':
+        f.write('# Iter\t\tEnergy\t\t\tCorrelation length\tConvergence\t\ttau\t\t\tCoarse-grain steps\n')
+    else:
+        f.write('# Iter\t\tEnergy\t\t\tConvergence\t\ttau\t\t\tCoarse-grain steps\n')
+
 f = open(file_name, 'a')
 # f.write('%d\t\t%.15f\t%.15f\t%d\n' % (0, np.real(energy), np.real(mag_x), num_of_iter))
 # f.write('%d\t\t%.15f\t%d\n' % (0, - 3 * np.real(energy) / 2, num_of_iter))
-f.write('%d\t\t%.15f\t%.15f\t%.15f\t%.15f\t%d\n'
-        % (0, - 3 * np.real(energy) / 2, correlation_length, delta, 0, num_of_iter))
+if method == 'CTMRG':
+    f.write('%d\t\t%.15f\t%.15f\t%.15f\t%.15f\t%d\n'
+            % (0, - 3 * np.real(energy) / 2, correlation_length, delta, 0, num_of_iter))
+else:
+    f.write('%d\t\t%.15f\t%.15f\t%.15f\t%d\n'
+            % (0, - 3 * np.real(energy) / 2, delta, 0, num_of_iter))
 # f.write('%d\t\t%.15f\t%d\n' % (0, np.real(energy), num_of_iter))
 f.close()
 
@@ -732,8 +728,12 @@ while tau >= tau_final and (j * refresh < 1500):
     f = open(file_name, 'a')
     # f.write('%d\t\t%.15f\t%.15f\t%d\n' % ((j + 1) * refresh, np.real(energy), np.real(mag_x), num_of_iter))
     # f.write('%d\t\t%.15f\t%.15f\t%.15f\t%d\n' % ((j + 1) * refresh, np.real(energy), delta, tau, num_of_iter))
-    f.write('%d\t\t%.15f\t%.15f\t%.15f\t%.15f\t%d\n'
-            % ((j + 1) * refresh, - 3 * np.real(energy) / 2, correlation_length, delta, tau, num_of_iter))
+    if method == 'CTMRG':
+        f.write('%d\t\t%.15f\t%.15f\t%.15f\t%.15f\t%d\n'
+                % ((j + 1) * refresh, - 3 * np.real(energy) / 2, correlation_length, delta, tau, num_of_iter))
+    else:
+        f.write('%d\t\t%.15f\t%.15f\t%.15f\t%d\n'
+                % ((j + 1) * refresh, - 3 * np.real(energy) / 2, delta, tau, num_of_iter))
     f.close()
 
     s1 = abs_list_difference(lambdas[0], lambdas_memory[0])

@@ -5,6 +5,10 @@ from scipy import linalg
 EPS = 1.E-32
 
 
+def physical_dimension_to_spin(d):
+    return str((d - 1) // 2) if (d - 1) % 2 == 0 else str(d - 1) + '/2'
+
+
 def get_spin_operators(spin):
     """Returns tuple of 3 spin operators and a unit matrix for given value of spin."""
 

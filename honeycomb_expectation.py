@@ -604,20 +604,8 @@ def init_ctm_ctmrg(ten_a, ten_b, lam):
 def init_weight_impurity_ctmrg(ten_a, ten_b, lam, model):
     """Returns impurity weight for energy calculation by CTMRG."""
 
-    d = ten_a.shape[0]
-    spin = None
-    if d == 2:
-        spin = "1/2"
-    elif d == 3:
-        spin = "1"
-    elif d == 4:
-        spin = "3/2"
-    elif d == 5:
-        spin = "2"
-    elif d == 6:
-        spin = "5/2"
-    elif d == 7:
-        spin = "3"
+    # d = ten_a.shape[0]  # physical dimension
+    spin = constants.physical_dimension_to_spin(ten_a.shape[0])
 
     sx, sy, sz, _ = constants.get_spin_operators(spin)
     if model == "Heisenberg":
@@ -669,20 +657,8 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, dim_cut, model="Kitae
     """
 
     # dim_cut = D * D
-    d = tensor_a.shape[0]  # physical dimension
-    spin = None
-    if d == 2:
-        spin = "1/2"
-    elif d == 3:
-        spin = "1"
-    elif d == 4:
-        spin = "3/2"
-    elif d == 5:
-        spin = "2"
-    elif d == 6:
-        spin = "5/2"
-    elif d == 7:
-        spin = "3"
+    # d = tensor_a.shape[0]  # physical dimension
+    spin = constants.physical_dimension_to_spin(tensor_a.shape[0])
 
     # norm_a = np.max(np.abs(tensor_a))
     # norm_b = np.max(np.abs(tensor_b))
