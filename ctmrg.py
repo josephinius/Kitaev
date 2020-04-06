@@ -155,7 +155,7 @@ def weight_rotate(weight):
     return np.transpose(weight, (1, 2, 3, 0))
 
 
-def system_extension_and_projection(dim, weight, corners, transfer_matrices):
+def system_extension_and_projection(dim, weight, corners, transfer_matrices, rotate=True):
     """Returns corners and transfer matrices extended (and projected) by one iterative CTMRG step. Here, one step of
     CTMRG consists of repeating four times following two steps:
 
@@ -179,9 +179,10 @@ def system_extension_and_projection(dim, weight, corners, transfer_matrices):
 
         t4 = extend_and_project_transfer_matrix(t4, weight, u)
 
-        c1, c2, c3, c4 = tuple_rotation(c1, c2, c3, c4)
-        t1, t2, t3, t4 = tuple_rotation(t1, t2, t3, t4)
-        weight = weight_rotate(weight)
+        if rotate:
+            c1, c2, c3, c4 = tuple_rotation(c1, c2, c3, c4)
+            t1, t2, t3, t4 = tuple_rotation(t1, t2, t3, t4)
+            weight = weight_rotate(weight)
 
     return [c1, c2, c3, c4], [t1, t2, t3, t4]
 
@@ -458,14 +459,14 @@ class CTMRG(object):
         self.weight_imp = weight_imp
         self.iter_counter = 0
 
-    def ctmrg_extend_and_renormalize(self, num_of_steps=1, dim=None):
+    def ctmrg_extend_and_renormalize(self, num_of_steps=1, dim=None, rotate=True):
         """Performs num_of_steps iterations of ctmrg algorithm for given cut-off dim and returns nothing."""
 
         if dim is None:
             dim = self.dim
 
         for _ in range(num_of_steps):
-            self.corners, self.tms = system_extension_and_projection(dim, self.weight, self.corners, self.tms)
+            self.corners, self.tms = system_extension_and_projection(dim, self.weight, self.corners, self.tms, rotate)
             for j in range(4):
                 corner_norm = np.max(np.abs(self.corners[j]))
                 self.corners[j] /= corner_norm
@@ -480,19 +481,19 @@ class CTMRG(object):
 
         energy = 0
         energy_mem = -1
-
         correlation_length = 0
         correlation_length_mem = -1
 
-        # Procedure for stabilizing corners and tms
+        """
+        # Procedure for stabilizing corners and tms: it doesn't seem to help much
         for dimension in range(2, self.dim, 2):
-            # TODO: How to find optimal value of num_of_steps?
-            self.ctmrg_extend_and_renormalize(num_of_steps=32, dim=dimension)
+            self.ctmrg_extend_and_renormalize(num_of_steps=20, dim=dimension)
+        """
 
         i = 0
         # for i in range(num_of_steps):
         # while abs(energy - energy_mem) > 1.E-8 and i < num_of_steps:
-        while abs(correlation_length - correlation_length_mem) > 1.E-6 and i < num_of_steps:
+        while abs(correlation_length - correlation_length_mem) > 1.E-10 and i < num_of_steps:
 
             self.ctmrg_extend_and_renormalize()
 
@@ -508,9 +509,8 @@ class CTMRG(object):
 
             correlation_length_mem = correlation_length
             correlation_length = calculate_correlation_length(self.tms[1], self.tms[3])
-            # correlation_length = calculate_correlation_length(self.tms[0], self.tms[2])
-            print('corr. length t1-t3:', calculate_correlation_length(self.tms[0], self.tms[2]))
-            print('ctm iter', i, 3 * energy / 2, correlation_length)
+            correlation_length_02 = calculate_correlation_length(self.tms[0], self.tms[2])
+            print('ctm iter', i, 3 * energy / 2, correlation_length, correlation_length_02)
             i += 1
 
         return energy, abs(energy - energy_mem), correlation_length, i
