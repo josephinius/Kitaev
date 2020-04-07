@@ -9,12 +9,17 @@ def physical_dimension_to_spin(d):
     return str((d - 1) // 2) if (d - 1) % 2 == 0 else str(d - 1) + '/2'
 
 
+def spin_to_physical_dimension(spin):
+    s = int(spin.split('/')[0]) / int(spin.split('/')[1]) if ('/' in spin) else int(spin)
+    return int(2 * s + 1)
+
+
 def get_spin_operators(spin):
     """Returns tuple of 3 spin operators and a unit matrix for given value of spin."""
 
-    assert isinstance(spin, str)
-    s = int(spin[0]) / int(spin[2]) if len(spin) > 1 else int(spin)
+    s = int(spin.split('/')[0]) / int(spin.split('/')[1]) if ('/' in spin) else int(spin)
     d = int(2 * s + 1)
+
     eye = np.eye(d, dtype=complex)
 
     sx = np.zeros([d, d], dtype=complex)
@@ -199,9 +204,16 @@ def create_loop_gas_operator(spin):
 
     tau_tensor = np.zeros((2, 2, 2), dtype=complex)  # tau_tensor_{i j k}
 
+    """
     if spin == "1/2" or spin == '3/2' or spin == '5/2':
         tau_tensor[0][0][0] = - 1j
     elif spin == "1" or spin == '2' or spin == '3':
+        tau_tensor[0][0][0] = 1
+    """
+
+    if '/' in spin:
+        tau_tensor[0][0][0] = - 1j
+    else:
         tau_tensor[0][0][0] = 1
 
     tau_tensor[0][1][1] = tau_tensor[1][0][1] = tau_tensor[1][1][0] = 1
@@ -213,11 +225,20 @@ def create_loop_gas_operator(spin):
 
     u_gamma = None
 
+    """
     if spin == "1/2":
         u_gamma = (sx, sy, sz)
     elif spin == '3/2' or spin == '5/2':
         u_gamma = tuple(map(lambda x: -1j * linalg.expm(1j * math.pi * x), (sx, sy, sz)))
     elif spin == "1" or spin == '2' or spin == '3':
+        u_gamma = tuple(map(lambda x: linalg.expm(1j * math.pi * x), (sx, sy, sz)))
+    """
+
+    if spin == "1/2":
+        u_gamma = (sx, sy, sz)
+    elif '/' in spin:
+        u_gamma = tuple(map(lambda x: -1j * linalg.expm(1j * math.pi * x), (sx, sy, sz)))
+    else:
         u_gamma = tuple(map(lambda x: linalg.expm(1j * math.pi * x), (sx, sy, sz)))
 
     for i in range(2):
