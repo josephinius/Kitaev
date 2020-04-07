@@ -516,9 +516,13 @@ lambdas = [np.array([1., ], dtype=complex),
 if model == "Kitaev":
     tensor_a = np.ones((d, xi, xi, xi), dtype=complex)
     tensor_b = np.ones((d, xi, xi, xi), dtype=complex)
-    tensor_a = prepare_magnetized_state(tensor_a, spin)
-    tensor_b = prepare_magnetized_state(tensor_b, spin)
-
+#     tensor_a = prepare_magnetized_state(tensor_a, spin)
+#     tensor_b = prepare_magnetized_state(tensor_b, spin)
+    w, v = linalg.eigh(-(sx + sy + sz))
+    state = v[:,0]
+    for i, x in enumerate(state):
+        tensor_a[i][0][0][0] = x
+        tensor_b[i][0][0][0] = x
     """
     if spin == "1":
         # Spin=1 Kitaev model polarized state
