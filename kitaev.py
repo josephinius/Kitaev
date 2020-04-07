@@ -466,7 +466,7 @@ def calculate_dimer_gas_profile(tensor_a, tensor_b, m, file_name='dimer_gas_prof
 model = "Kitaev"
 # model = "Heisenberg"
 
-spin = "9/2"
+spin = "11/2"
 k = 1.
 h = 0.E-14  # external field - not introduced consistently for all settings
 # print('field', h)

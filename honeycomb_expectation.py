@@ -652,7 +652,7 @@ def export_to_ctmrg(ten_a, ten_b, lam, model):
 
 def coarse_graining_procedure(tensor_a, tensor_b, lambdas, dim_cut, model="Kitaev"):
     """
-    Returns the converged energy given the quantum state (tensor_a, tensor_b) for the spin={1/2, 1} Kitaev model and
+    Returns the converged energy given the quantum state (tensor_a, tensor_b) for Kitaev model and
     prints log of the convergence wrt iterative steps of coarse-graining.
     """
 
@@ -697,12 +697,22 @@ def coarse_graining_procedure(tensor_a, tensor_b, lambdas, dim_cut, model="Kitae
 
     spin_rotation_operators = None
 
+    """
     if spin == "1/2":
         spin_rotation_operators = (sx, sy, sz)
     elif spin == '3/2' or spin == '5/2':
         spin_rotation_operators = tuple(map(lambda x: -1j * linalg.expm(1j * math.pi * x), (sx, sy, sz)))
     elif spin == "1" or spin == '2' or spin == '3':
         spin_rotation_operators = tuple(map(lambda x: linalg.expm(1j * math.pi * x), (sx, sy, sz)))
+    """
+
+    if spin == "1/2":
+        spin_rotation_operators = (sx, sy, sz)
+    elif '/' in spin:
+        spin_rotation_operators = tuple(map(lambda x: -1j * linalg.expm(1j * math.pi * x), (sx, sy, sz)))
+    else:
+        spin_rotation_operators = tuple(map(lambda x: linalg.expm(1j * math.pi * x), (sx, sy, sz)))
+
     """
     if spin == "1":
         spin_rotation_operators = (constants.UZ, constants.UY, constants.UX)
