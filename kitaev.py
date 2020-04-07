@@ -150,19 +150,14 @@ def psi_zero_test(psi, spin):
 
 
 def prepare_magnetized_state(tensor, spin):
-    """Returns magnetized state (i.e. polarized state) |0> = (1 1 1).
-
-    Note: We use analytical form of magnetized state for spin=1 Kitaev model.
-    """
-
-    print('In prepare_magnetized_state')
-
-    # step = 100.
-    step = 10.
+    """Returns magnetized state (i.e. polarized state) |0> = (1 1 1)."""
 
     sx, sy, sz, _ = constants.get_spin_operators(spin)
-    op = construct_ite_operator(- step, sx + sy + sz)
 
+    """
+    # step = 100.
+    step = 10.
+    op = construct_ite_operator(- step, sx + sy + sz)
     i = 0
     while psi_zero_test(tensor, spin) > 1.E-15:
         tensor = np.tensordot(op, tensor, axes=(1, 0))
@@ -171,8 +166,12 @@ def prepare_magnetized_state(tensor, spin):
         if i % 10 == 0:
             print(i, psi_zero_test(tensor, spin))
         i += 1
-
     print(i, psi_zero_test(tensor, spin))
+    """
+
+    _, v = linalg.eigh(-(sx + sy + sz))
+    for i, x in enumerate(v[:, 0]):
+        tensor[i][0][0][0] = x
 
     return tensor
 
@@ -471,8 +470,8 @@ spin = "1"
 k = 1.
 h = 0.E-14  # external field - not introduced consistently for all settings
 # print('field', h)
-D = 4  # max virtual (bond) dimension
-m = 16  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
+D = 6  # max virtual (bond) dimension
+m = 36  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
 
 method = 'CTMRG'  # TRG or CTMRG
 dojob = 'ITE'  # Dimer or ITE
@@ -516,13 +515,9 @@ lambdas = [np.array([1., ], dtype=complex),
 if model == "Kitaev":
     tensor_a = np.ones((d, xi, xi, xi), dtype=complex)
     tensor_b = np.ones((d, xi, xi, xi), dtype=complex)
-#     tensor_a = prepare_magnetized_state(tensor_a, spin)
-#     tensor_b = prepare_magnetized_state(tensor_b, spin)
-    w, v = linalg.eigh(-(sx + sy + sz))
-    state = v[:,0]
-    for i, x in enumerate(state):
-        tensor_a[i][0][0][0] = x
-        tensor_b[i][0][0][0] = x
+    tensor_a = prepare_magnetized_state(tensor_a, spin)
+    tensor_b = prepare_magnetized_state(tensor_b, spin)
+
     """
     if spin == "1":
         # Spin=1 Kitaev model polarized state
