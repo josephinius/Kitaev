@@ -436,7 +436,7 @@ def calculate_correlation_length(t1, t3):  # or use (t2, t4)
     wAbs = sorted(abs(w), reverse=True)[:numOfCorrLen+1]
     correlation_length = np.zeros(numOfCorrLen)
     for j in range(numOfCorrLen):
-            corrLen[j] = np.log(wAbs[0] / wAbs[j+1])
+            correlation_length[j] = np.log(wAbs[0] / wAbs[j+1])
     # print('w', w)
     # correlation_length = - 1 / math.log(w[-2] / w[-1])
     correlation_length = - 1 / math.log(w[1] / w[0])
