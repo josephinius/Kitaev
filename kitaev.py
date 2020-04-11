@@ -470,8 +470,8 @@ spin = "1"
 k = 1.
 h = 0.E-14  # external field - not introduced consistently for all settings
 # print('field', h)
-D = 10  # max virtual (bond) dimension
-m = 50  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
+D = 4  # max virtual (bond) dimension
+m = 32  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
 
 method = 'CTMRG'  # TRG or CTMRG
 dojob = 'ITE'  # Dimer or ITE
@@ -622,7 +622,7 @@ if method == 'CTMRG':
     energy = -energy
     print(
         'Energy of the initial state', - 3 * energy / 2,
-        'corr length', correlation_length,
+        'corr length', *correlation_length,
         'precision:', delta,
         'num_of_iter', num_of_iter
     )
@@ -637,7 +637,8 @@ with open(file_name, 'w') as f:
     f.write('# %s S=%s model - ITE flow\n' % (model, spin))
     f.write('# D=%d, m=%d, tau=%.8E, h=%.14E\n' % (D, m, tau, h))
     if method == 'CTMRG':
-        f.write('# Iter\t\tEnergy\t\t\tCorrelation length\tConvergence\t\ttau\t\t\tCoarse-grain steps\n')
+        f.write('# Iter\t\tEnergy\t\t\tCorrelation length\t\t\t\t\t\t\t\t\t\t\t\t\t'
+                'Convergence\t\ttau\t\t\tCoarse-grain steps\n')
     else:
         f.write('# Iter\t\tEnergy\t\t\tConvergence\t\ttau\t\t\tCoarse-grain steps\n')
 
@@ -645,8 +646,10 @@ f = open(file_name, 'a')
 # f.write('%d\t\t%.15f\t%.15f\t%d\n' % (0, np.real(energy), np.real(mag_x), num_of_iter))
 # f.write('%d\t\t%.15f\t%d\n' % (0, - 3 * np.real(energy) / 2, num_of_iter))
 if method == 'CTMRG':
-    f.write('%d\t\t%.15f\t%.15f\t%.15f\t%.15f\t%d\n'
-            % (0, - 3 * np.real(energy) / 2, correlation_length, delta, 0, num_of_iter))
+    f.write('%d\t\t%.15f\t' % (0, - 3 * np.real(energy) / 2))
+    for corr_len in correlation_length:
+        f.write('%.15f\t' % corr_len)
+    f.write('%.15f\t%.15f\t%d\n' % (delta, 0, num_of_iter))
 else:
     f.write('%d\t\t%.15f\t%.15f\t%.15f\t%d\n'
             % (0, - 3 * np.real(energy) / 2, delta, 0, num_of_iter))
@@ -702,7 +705,7 @@ while tau >= tau_final and (j * refresh < 2_500):
         print(
             '# ITE flow iter:', (j + 1) * refresh,
             'energy:', - 3 * np.real(energy) / 2,
-            'correlation length', correlation_length,
+            'correlation length', *correlation_length,
             'delta:', delta,
             'num_of_iter:', num_of_iter
         )
@@ -728,8 +731,10 @@ while tau >= tau_final and (j * refresh < 2_500):
     # f.write('%d\t\t%.15f\t%.15f\t%d\n' % ((j + 1) * refresh, np.real(energy), np.real(mag_x), num_of_iter))
     # f.write('%d\t\t%.15f\t%.15f\t%.15f\t%d\n' % ((j + 1) * refresh, np.real(energy), delta, tau, num_of_iter))
     if method == 'CTMRG':
-        f.write('%d\t\t%.15f\t%.15f\t%.15f\t%.15f\t%d\n'
-                % ((j + 1) * refresh, - 3 * np.real(energy) / 2, correlation_length, delta, tau, num_of_iter))
+        f.write('%d\t\t%.15f\t' % ((j + 1) * refresh, - 3 * np.real(energy) / 2))
+        for corr_len in correlation_length:
+            f.write('%.15f\t' % corr_len)
+        f.write('%.15f\t%.15f\t%d\n' % (delta, tau, num_of_iter))
     else:
         f.write('%d\t\t%.15f\t%.15f\t%.15f\t%d\n'
                 % ((j + 1) * refresh, - 3 * np.real(energy) / 2, delta, tau, num_of_iter))

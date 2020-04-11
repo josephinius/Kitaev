@@ -418,8 +418,8 @@ def measurement(weight, corners, transfer_matrices, weight_imp):
     return np.tensordot(half1, half2, axes=([0, 1, 2, 3], [0, 2, 1, 3])) / norm
 
 
-def calculate_correlation_length(t1, t3):  # or use (t2, t4)
-    """Returns correlation length."""
+def calculate_correlation_length(t1, t3, n=5):  # or use (t2, t4)
+    """Returns list of n largest correlation lengths."""
 
     tm = np.tensordot(t1, t3, axes=(1, 1))  # tm_{a1 b1 a2 b2} = t1_{a1 i b1} * t3_{a2 i b2}
     # tm = np.transpose(tm, (0, 3, 1, 2))  # tm_{a1 b2 b1 a2}  - produces negative sign in log
@@ -428,18 +428,10 @@ def calculate_correlation_length(t1, t3):  # or use (t2, t4)
     d = tm.shape[0]
     tm = tm.reshape((d * d, d * d))
 
-    # size = tm.shape[0]
-    # w = linalg.eigh(tm, overwrite_a=True, eigvals_only=True, eigvals=(max(0, size - 2), size - 1), check_finite=False)
-    #w = linalg.eig(tm, overwrite_a=True, right=False, check_finite=False)
-    numOfCorrLen = 5
-    w = linalg.eigvals(tm)
-    wAbs = sorted(abs(w), reverse=True)[:numOfCorrLen+1]
-    correlation_length = np.zeros(numOfCorrLen)
-    for j in range(numOfCorrLen):
-            correlation_length[j] = np.log(wAbs[0] / wAbs[j+1])
-    # print('w', w)
-    # correlation_length = - 1 / math.log(w[-2] / w[-1])
-    #correlation_length = - 1 / math.log(w[1] / w[0])
+    w = linalg.eigvals(tm, overwrite_a=True, check_finite=False)
+    w_abs = sorted(abs(w), reverse=True)[:(n+1)]
+
+    correlation_length = [1 / np.log(w_abs[0] / w_abs[j+1]) for j in range(n)]
 
     return correlation_length
 
@@ -488,14 +480,14 @@ class CTMRG(object):
                 # print('corner_norm', corner_norm)
                 # print('tm_norm', tm_norm)
 
-    def ctmrg_iteration(self, num_of_steps=10):
+    def ctmrg_iteration(self, num_of_steps=100):
         """Performs at most num_of_steps iterations of ctmrg algorithm and prints energy after each iteration.
         Returns the final energy, "precision", and number of iterations."""
 
         energy = 0
         energy_mem = -1
-        correlation_length = 0
-        correlation_length_mem = -1
+        correlation_length_0 = 0
+        correlation_length_mem_0 = -1
 
         """
         # Procedure for stabilizing corners and tms: it doesn't seem to help much
@@ -506,7 +498,7 @@ class CTMRG(object):
         i = 0
         # for i in range(num_of_steps):
         # while abs(energy - energy_mem) > 1.E-8 and i < num_of_steps:
-        while abs(correlation_length - correlation_length_mem) > 1.E-6 and i < num_of_steps:
+        while abs(correlation_length_0 - correlation_length_mem_0) > 1.E-6 and i < num_of_steps:
 
             self.ctmrg_extend_and_renormalize()
 
@@ -520,10 +512,11 @@ class CTMRG(object):
             energy_mem = energy
             energy = measurement(self.weight, self.corners, self.tms, self.weight_imp)
 
-            correlation_length_mem = correlation_length
+            correlation_length_mem_0 = correlation_length_0
             correlation_length = calculate_correlation_length(self.tms[1], self.tms[3])
+            correlation_length_0 = correlation_length[0]
             # correlation_length_02 = calculate_correlation_length(self.tms[0], self.tms[2])
-            print('ctm iter', i, 3 * energy / 2, correlation_length)
+            print('ctm iter', i, 3 * energy / 2, *correlation_length)
             # print('ctm iter', i, 3 * energy / 2, correlation_length, correlation_length_02)
             i += 1
 
