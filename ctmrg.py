@@ -430,11 +430,16 @@ def calculate_correlation_length(t1, t3):  # or use (t2, t4)
 
     # size = tm.shape[0]
     # w = linalg.eigh(tm, overwrite_a=True, eigvals_only=True, eigvals=(max(0, size - 2), size - 1), check_finite=False)
-    w = linalg.eig(tm, overwrite_a=True, right=False, check_finite=False)
-
+    #w = linalg.eig(tm, overwrite_a=True, right=False, check_finite=False)
+    numOfCorrLen = 5
+    w = linalg.eigvals(tm)
+    wAbs = sorted(abs(w), reverse=True)[:numOfCorrLen+1]
+    correlation_length = np.zeros(numOfCorrLen)
+    for j in range(numOfCorrLen):
+            correlation_length[j] = np.log(wAbs[0] / wAbs[j+1])
     # print('w', w)
     # correlation_length = - 1 / math.log(w[-2] / w[-1])
-    correlation_length = - 1 / math.log(w[1] / w[0])
+    #correlation_length = - 1 / math.log(w[1] / w[0])
 
     return correlation_length
 
