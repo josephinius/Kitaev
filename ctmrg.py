@@ -421,6 +421,9 @@ def measurement(weight, corners, transfer_matrices, weight_imp):
 def calculate_correlation_length(t1, t3, n=5):  # or use (t2, t4)
     """Returns list of n largest correlation lengths."""
 
+    t1 = np.array(t1, dtype=np.complex64)
+    t3 = np.array(t3, dtype=np.complex64)
+
     tm = np.tensordot(t1, t3, axes=(1, 1))  # tm_{a1 b1 a2 b2} = t1_{a1 i b1} * t3_{a2 i b2}
     tm = np.transpose(tm, (0, 3, 1, 2))  # tm_{a1 b2 b1 a2}
     # tm = np.transpose(tm, (0, 2, 1, 3))  # tm_{a1 a2 b1 a2}
