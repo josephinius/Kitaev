@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import linalg
+from constants import EPS
 import math
 # import copy
 # import time
@@ -107,40 +108,44 @@ def create_projector_operator(dim, c1, c4):
     m2 = np.tensordot(c4, np.conj(c4), axes=(1, 1))  # m2_{ai bj} = c4_{(a i) g} * conj(c4)_{(b j) g}
     # w, u = np.linalg.eigh(m1 + m2)
     # w, u = linalg.eigh(m1 + m2, overwrite_a=True, check_finite=False)
-
-    # w, u = linalg.eigh(m1 + m2, overwrite_a=True, check_finite=False)
     size = m1.shape[0]
     _, u = linalg.eigh(m1 + m2, overwrite_a=True, eigvals=(max(0, size - dim), size - 1), check_finite=False)
-
     u = np.fliplr(u)
     # return np.conj(u[:, :dim])
     return np.conj(u)
 
 
-def extend_and_project_transfer_matrix(t4, weight, u):
+def extend_and_project_transfer_matrix(t4, weight, u1, u2=None):
     """
     Returns extended and re-normalized corner matrix according to following schema:
 
             a
             |
-           / \ conj(U)
+           / \ conj(U1) or U1
           /   \
          |     |  Weight
       T4 |_____|____
          |     |     j
          |     |
           \   /
-           \ /  U
+           \ /  U1 or U2
             |
             b
 
     """
 
     da, di = t4.shape[:2]
-    u = u.reshape((da, di, -1))
-    t4u = np.tensordot(t4, np.conj(u), axes=(0, 0))  # t4u_{l d i a} = t4_{g l d} * u_{(g, i) a}
+    u1 = u1.reshape((da, di, -1))
+
+    if u2 is None:
+        u2 = u1
+        u1 = np.conj(u1)
+    else:
+        u2 = u2.reshape((da, di, -1))
+
+    t4u = np.tensordot(t4, u1, axes=(0, 0))  # t4u_{l d i a} = t4_{g l d} * u1_{(g, i) a}
     t4uw = np.tensordot(t4u, weight, axes=([0, 2], [3, 0]))  # t4uw_{d a j k} = t4u_{l d i a} * weight_{i j k l}
-    return np.tensordot(t4uw, u, axes=([0, 3], [0, 1]))  # t4_new_{a j b} = t4uw_{d a j k} * u_{(d, k), b}
+    return np.tensordot(t4uw, u2, axes=([0, 3], [0, 1]))  # t4_new_{a j b} = t4uw_{d a j k} * u2_{(d, k), b}
 
 
 def tuple_rotation(c1, c2, c3, c4):
@@ -155,7 +160,7 @@ def weight_rotate(weight):
     return np.transpose(weight, (1, 2, 3, 0))
 
 
-def system_extension_and_projection(dim, weight, corners, transfer_matrices, rotate=True):
+def orus_vidal_2009(dim, weight, corners, transfer_matrices, rotate=True):
     """Returns corners and transfer matrices extended (and projected) by one iterative CTMRG step. Here, one step of
     CTMRG consists of repeating four times following two steps:
 
@@ -187,6 +192,110 @@ def system_extension_and_projection(dim, weight, corners, transfer_matrices, rot
     return [c1, c2, c3, c4], [t1, t2, t3, t4]
 
 
+def create_upper_half(c1, c2):
+    """
+
+        C1  ____ __......__ ____  C2
+           |    |          |    |
+           |____|__......__|____|
+           |    |          |    |
+           |    |          |    |
+           a    i          j    b
+
+    """
+
+    uh = np.tensordot(c2, c1, axes=([2, 3], [0, 1]))  # uh_{b j a i} = c2_{b j c k} * c1_{c k a i}
+    return uh.reshape((np.prod(uh.shape[:2]), -1))  # uh_{(b j), (a i)}
+
+
+def create_lower_half(c3, c4):
+    """
+
+           a    i              j    b
+           |    |              |    |
+           |____|____......____|____|
+           |    |              |    |
+           |____|____......____|____|
+        C4                            C3
+
+    """
+
+    lh = np.tensordot(c3, c4, axes=([0, 1], [2, 3]))  # lh_{b j a i} = c3_{c k b j} * c4_{a i c k}
+    return lh.reshape((np.prod(lh.shape[:2]), -1))  # lh_{(b j), (a i)}
+
+
+def create_projectors(c1, c2, c3, c4, dim_cut):
+    # TODO: write a docstring
+
+    upper_half = create_upper_half(c1, c2)
+    # q, r_up = linalg.qr(upper_half)
+    _, r_up = linalg.qr(upper_half)
+
+    lower_half = create_lower_half(c3, c4)
+    _, r_down = linalg.qr(lower_half)
+
+    rr = np.tensordot(r_up, r_down, axes=(1, 1))
+    u, s, vt = linalg.svd(rr, lapack_driver='gesvd')  # use 'gesvd' or 'gesdd'
+
+    dim_new = min(s.shape[0], dim_cut)
+    lambda_new = []
+
+    for s in s[:dim_new]:
+        if s < EPS:
+            print('s too small', s)
+            break
+        lambda_new.append(s)
+
+    dim_new = len(lambda_new)
+    lambda_new = np.array(lambda_new)
+
+    u = np.conj(u[:, :dim_new]) / np.sqrt(lambda_new)[None, :]
+    vt = np.conj(vt[:dim_new, :]) / np.sqrt(lambda_new)[:, None]
+
+    upper_projector = np.tensordot(r_down, vt, axes=(0, 1))
+    lower_projector = np.tensordot(r_up, u, axes=(0, 0))
+
+    return upper_projector, lower_projector
+
+
+def corboz_at_al_2011(dim, weight, corners, transfer_matrices, rotate=True):
+    # TODO: write a docstring
+
+    c1, c2, c3, c4 = corners
+    t1, t2, t3, t4 = transfer_matrices
+
+    for _ in range(4):
+        corners_extended = []
+
+        for i in range(4):
+            weight = weight_rotate(weight)
+            c = corners[i]
+            tm1 = transfer_matrices[i]
+            tm2 = transfer_matrices[(i + 3) % 4]
+            # print(f'corner c[{i+1}] extension...')
+            corners_extended.append(corner_extension(c, tm1, tm2, weight))
+            # print(f'extended corner c[{i+1}] ready')
+
+        p_up, p_down = create_projectors(*corners_extended, dim)
+
+        c1 = extend_corner1(c1, t1)
+        c4 = extend_corner4(c4, t3)
+
+        c1 = np.tensordot(c1, p_up, axes=(1, 0))
+        c4 = np.tensordot(p_down, c4, axes=(0, 0))
+
+        t4 = extend_and_project_transfer_matrix(t4, weight, p_down, p_up)
+
+        if rotate:
+            c1, c2, c3, c4 = tuple_rotation(c1, c2, c3, c4)
+            t1, t2, t3, t4 = tuple_rotation(t1, t2, t3, t4)
+            transfer_matrices = t1, t2, t3, t4
+            corners = c1, c2, c3, c4
+            weight = weight_rotate(weight)
+
+    return [c1, c2, c3, c4], [t1, t2, t3, t4]
+
+
 def create_density_matrix(c1, c2, c3, c4):
     """
     Returns density matrix constructed from four extended corner matrices.
@@ -195,7 +304,7 @@ def create_density_matrix(c1, c2, c3, c4):
 
         DM_{a i b j} =
 
-        C1  ____ __ a      b __ ____ C2
+        C1  ____ __ a      b __ ____  C2
            |    |              |    |
            |____|__          __|____|
            |    |   i      j   |    |
@@ -205,7 +314,7 @@ def create_density_matrix(c1, c2, c3, c4):
            |____|____......____|____|
            |    |              |    |
            |____|____......____|____|
-        C4                           C3
+        C4                            C3
 
     """
 
@@ -421,6 +530,9 @@ def measurement(weight, corners, transfer_matrices, weight_imp):
 def calculate_correlation_length(t1, t3, n=5):  # or use (t2, t4)
     """Returns list of n largest correlation lengths."""
 
+    if t1.shape != t3.shape:
+        raise ValueError
+
     t1 = np.array(t1, dtype=np.complex64)
     t3 = np.array(t3, dtype=np.complex64)
 
@@ -439,25 +551,10 @@ def calculate_correlation_length(t1, t3, n=5):  # or use (t2, t4)
     return correlation_length
 
 
-"""
-def calculate_correlation_length(t):
-    # Returns correlation length.
-    tm = np.tensordot(t, t, axes=(1, 1))  # tm_{a1 b1 a2 b2} = t_{a1 i b1} * t_{a1 i b2}
-    tm = np.transpose(tm, (0, 2, 1, 3))  # tm_{a1 a2 b1 b2}
-    d = tm.shape[0]
-    tm = tm.reshape((d * d, d * d))
-    size = tm.shape[0]
-    # w = linalg.eigh(tm, overwrite_a=True, eigvals_only=True, eigvals=(max(0, size - 2), size - 1), check_finite=False)
-    w = linalg.eigh(tm, overwrite_a=True, eigvals_only=True, eigvals=(max(0, size - 2), size - 1))
-    correlation_length = - 1 / math.log(w[-2] / w[-1])
-    return correlation_length
-"""
-
-
 class CTMRG(object):
     """An implementation of Corner Transfer Matrix Renormalisation Group (CTMRG) algorithm."""
 
-    def __init__(self, dim, weight, corners, tms, weight_imp):
+    def __init__(self, dim, weight, corners, tms, weight_imp, algorithm='Corboz'):
         """Creates a CTMRG object from initial local weights."""
 
         self.dim = dim  # cut-off for virtual degrees of freedom
@@ -467,6 +564,13 @@ class CTMRG(object):
         self.weight_imp = weight_imp
         self.iter_counter = 0
 
+        if algorithm == 'Corboz':
+            self.system_extension_and_projection = corboz_at_al_2011
+        elif algorithm == 'Orus':
+            self.system_extension_and_projection = orus_vidal_2009
+        else:
+            raise ValueError("algorithm should be either 'Corboz' or 'Orus'")
+
     def ctmrg_extend_and_renormalize(self, num_of_steps=1, dim=None, rotate=True):
         """Performs num_of_steps iterations of ctmrg algorithm for given cut-off dim and returns nothing."""
 
@@ -474,7 +578,8 @@ class CTMRG(object):
             dim = self.dim
 
         for _ in range(num_of_steps):
-            self.corners, self.tms = system_extension_and_projection(dim, self.weight, self.corners, self.tms, rotate)
+            self.corners, self.tms = self.system_extension_and_projection(dim, self.weight, self.corners,
+                                                                          self.tms, rotate)
             for j in range(4):
                 corner_norm = np.max(np.abs(self.corners[j]))
                 self.corners[j] /= corner_norm
@@ -483,7 +588,7 @@ class CTMRG(object):
                 # print('corner_norm', corner_norm)
                 # print('tm_norm', tm_norm)
 
-    def ctmrg_iteration(self, num_of_steps=10):
+    def ctmrg_iteration(self, num_of_steps=20):
         """Performs at most num_of_steps iterations of ctmrg algorithm and prints energy after each iteration.
         Returns the final energy, "precision", and number of iterations."""
 
@@ -500,8 +605,8 @@ class CTMRG(object):
 
         i = 0
         # for i in range(num_of_steps):
-        # while abs(energy - energy_mem) > 1.E-8 and i < num_of_steps:
-        while abs(correlation_length_0 - correlation_length_mem_0) > 1.E-6 and i < num_of_steps:
+        while abs(energy - energy_mem) > 1.E-11 and i < num_of_steps:
+        # while abs(correlation_length_0 - correlation_length_mem_0) > 1.E-6 and i < num_of_steps:
 
             self.ctmrg_extend_and_renormalize()
 
@@ -515,10 +620,14 @@ class CTMRG(object):
             energy_mem = energy
             energy = measurement(self.weight, self.corners, self.tms, self.weight_imp)
 
-            correlation_length_mem_0 = correlation_length_0
-            correlation_length = calculate_correlation_length(self.tms[1], self.tms[3])
-            correlation_length_0 = correlation_length[0]
-            # correlation_length_02 = calculate_correlation_length(self.tms[0], self.tms[2])
+            try:
+                correlation_length_mem_0 = correlation_length_0
+                correlation_length = calculate_correlation_length(self.tms[1], self.tms[3])
+                correlation_length_0 = correlation_length[0]
+                # correlation_length_02 = calculate_correlation_length(self.tms[0], self.tms[2])
+            except ValueError:
+                correlation_length = [-1] * 5
+
             print('ctm iter', i, 3 * energy / 2, *correlation_length)
             # print('ctm iter', i, 3 * energy / 2, correlation_length, correlation_length_02)
             i += 1
