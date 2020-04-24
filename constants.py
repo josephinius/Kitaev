@@ -2,7 +2,7 @@ import math
 import numpy as np
 from scipy import linalg
 
-EPS = 1.E-32
+EPS = 1.E-64
 
 
 def physical_dimension_to_spin(d):

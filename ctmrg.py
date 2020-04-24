@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import linalg
 from constants import EPS
-import math
+# import math
 # import copy
 # import time
 # import pickle
@@ -167,6 +167,8 @@ def orus_vidal_2009(dim, weight, corners, transfer_matrices, rotate=True):
         (1) introducing additional column to system;
         (2) 90-degrees rotation of whole system.
 
+    This algorithm comes from PHYSICAL REVIEW B 80, 094403 (2009).
+
     """
 
     c1, c2, c3, c4 = corners
@@ -225,7 +227,11 @@ def create_lower_half(c3, c4):
 
 
 def create_projectors(c1, c2, c3, c4, dim_cut):
-    # TODO: write a docstring
+    """Returns upper and lower projector used for renormalization of corners c1, c4 and transfer matrix t4.
+
+    Projector pair is obtained according to schema in Figure 1 in PHYSICAL REVIEW B 84, 041108(R) (2011).
+
+    """
 
     upper_half = create_upper_half(c1, c2)
     # q, r_up = linalg.qr(upper_half)
@@ -240,11 +246,11 @@ def create_projectors(c1, c2, c3, c4, dim_cut):
     dim_new = min(s.shape[0], dim_cut)
     lambda_new = []
 
-    for s in s[:dim_new]:
-        if s < EPS:
+    for x in s[:dim_new]:
+        if x < EPS:
             print('s too small', s)
             break
-        lambda_new.append(s)
+        lambda_new.append(x)
 
     dim_new = len(lambda_new)
     lambda_new = np.array(lambda_new)
@@ -259,7 +265,15 @@ def create_projectors(c1, c2, c3, c4, dim_cut):
 
 
 def corboz_at_al_2011(dim, weight, corners, transfer_matrices, rotate=True):
-    # TODO: write a docstring
+    """Returns corners and transfer matrices extended (and projected) by one iterative CTMRG step. Here, one step of
+    CTMRG consists of repeating four times following two steps:
+
+        (1) introducing additional column to system;
+        (2) 90-degrees rotation of whole system.
+
+    This algorithm comes from PHYSICAL REVIEW B 84, 041108(R) (2011).
+
+    """
 
     c1, c2, c3, c4 = corners
     t1, t2, t3, t4 = transfer_matrices
@@ -414,8 +428,7 @@ def transfer_matrix_renormalization(tm, p1, p2=None):
     """
 
     if p2 is None:
-        print('p2 not initialized')
-        # exit()
+        # print('p2 not initialized')
         p2 = p1
 
     # print('p.shape', p.shape)
@@ -563,10 +576,11 @@ class CTMRG(object):
         self.tms = tms
         self.weight_imp = weight_imp
         self.iter_counter = 0
+        self.algorithm = algorithm
 
-        if algorithm == 'Corboz':
+        if self.algorithm == 'Corboz':
             self.system_extension_and_projection = corboz_at_al_2011
-        elif algorithm == 'Orus':
+        elif self.algorithm == 'Orus':
             self.system_extension_and_projection = orus_vidal_2009
         else:
             raise ValueError("algorithm should be either 'Corboz' or 'Orus'")
@@ -588,14 +602,14 @@ class CTMRG(object):
                 # print('corner_norm', corner_norm)
                 # print('tm_norm', tm_norm)
 
-    def ctmrg_iteration(self, num_of_steps=20):
+    def ctmrg_iteration(self, num_of_steps=25):
         """Performs at most num_of_steps iterations of ctmrg algorithm and prints energy after each iteration.
         Returns the final energy, "precision", and number of iterations."""
 
         energy = 0
         energy_mem = -1
-        correlation_length_0 = 0
-        correlation_length_mem_0 = -1
+        # correlation_length_0 = 0
+        # correlation_length_mem_0 = -1
 
         """
         # Procedure for stabilizing corners and tms: it doesn't seem to help much
@@ -605,8 +619,8 @@ class CTMRG(object):
 
         i = 0
         # for i in range(num_of_steps):
-        while abs(energy - energy_mem) > 1.E-11 and i < num_of_steps:
-        # while abs(correlation_length_0 - correlation_length_mem_0) > 1.E-6 and i < num_of_steps:
+        while abs(energy - energy_mem) > 1.E-12 and i < num_of_steps:
+        # while abs(correlation_length_0 - correlation_length_mem_0) > 1.E-7 and i < num_of_steps:
 
             self.ctmrg_extend_and_renormalize()
 
@@ -621,15 +635,18 @@ class CTMRG(object):
             energy = measurement(self.weight, self.corners, self.tms, self.weight_imp)
 
             try:
-                correlation_length_mem_0 = correlation_length_0
+                # correlation_length_mem_0 = correlation_length_0
                 correlation_length = calculate_correlation_length(self.tms[1], self.tms[3])
-                correlation_length_0 = correlation_length[0]
+                # correlation_length_0 = correlation_length[0]
                 # correlation_length_02 = calculate_correlation_length(self.tms[0], self.tms[2])
             except ValueError:
                 correlation_length = [-1] * 5
 
-            print('ctm iter', i, 3 * energy / 2, *correlation_length)
+            # print('ctm iter', i, 3 * energy / 2, *correlation_length)
             # print('ctm iter', i, 3 * energy / 2, correlation_length, correlation_length_02)
+            # print(f"""{i + 1}\t{np.real(3 * energy / 2)}\t{' '.join(str(cl) for cl in correlation_length)}""")
+            tab = '\t'
+            print(f"""{i + 1}\t{3 * energy / 2}\t\t{tab.join(str(cl) for cl in correlation_length)}""")
             i += 1
 
         return energy, abs(energy - energy_mem), correlation_length, i

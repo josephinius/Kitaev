@@ -470,8 +470,8 @@ spin = "1"
 k = 1.
 h = 0.E-14  # external field - not introduced consistently for all settings
 # print('field', h)
-D = 8  # max virtual (bond) dimension
-m = 64  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
+D = 4  # max virtual (bond) dimension
+m = 24  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
 
 method = 'CTMRG'  # TRG or CTMRG
 dojob = 'ITE'  # Dimer or ITE
@@ -637,6 +637,7 @@ with open(file_name, 'w') as f:
     f.write('# %s S=%s model - ITE flow\n' % (model, spin))
     f.write('# D=%d, m=%d, tau=%.8E, h=%.14E\n' % (D, m, tau, h))
     if method == 'CTMRG':
+        f.write(f'# {ctm.algorithm} CTMRG\n')
         f.write('# Iter\t\tEnergy\t\t\tCorrelation length\t\t\t\t\t\t\t\t\t\t\t\t\t'
                 'Convergence\t\ttau\t\t\tCoarse-grain steps\n')
     else:
