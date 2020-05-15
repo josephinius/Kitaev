@@ -248,7 +248,8 @@ def create_projectors(c1, c2, c3, c4, dim_cut):
 
     for x in s[:dim_new]:
         if x < EPS:
-            print('s too small', s)
+            # print('s too small', s)
+            # print('s too small')
             break
         lambda_new.append(x)
 
@@ -571,12 +572,26 @@ class CTMRG(object):
         """Creates a CTMRG object from initial local weights."""
 
         self.dim = dim  # cut-off for virtual degrees of freedom
-        self.weight = weight
-        self.corners = corners
-        self.tms = tms
-        self.weight_imp = weight_imp
-        self.iter_counter = 0
+        # self.weight = weight
+        # self.corners = corners
+        # self.tms = tms
+        # self.weight_imp = weight_imp
+
+        self.list_of_log_corner_norms = [np.log(np.max(np.abs(x))) for x in corners]
+        self.list_of_log_tm_norms = [np.log(np.max(np.abs(x))) for x in tms]
+
+        self.corners = tuple(map(lambda x: x / np.max(np.abs(x)), corners))
+        self.tms = tuple(map(lambda x: x / np.max(np.abs(x)), tms))
+
+        weight_norm = np.max(np.abs(weight))
+        print('weight norm', weight_norm)
+        self.log_weight_norm = np.log(weight_norm)
+
+        self.weight = weight / weight_norm
+        self.weight_imp = weight_imp / weight_norm
+
         self.algorithm = algorithm
+        self.iter_counter = 0
 
         if self.algorithm == 'Corboz':
             self.system_extension_and_projection = corboz_at_al_2011
@@ -584,6 +599,44 @@ class CTMRG(object):
             self.system_extension_and_projection = orus_vidal_2009
         else:
             raise ValueError("algorithm should be either 'Corboz' or 'Orus'")
+
+    def __getattr__(self, temperature):
+        """When temperature property does not exist, it is returned as 1."""
+        return 1.
+
+    def calculate_trace_ctm4(self):
+        c1, c2, c3, c4 = self.corners
+        x = np.tensordot(c2, c1, axes=(1, 0))
+        x = np.tensordot(c3, x, axes=(1, 0))
+        return np.tensordot(c4, x, axes=([1, 0], [0, 1]))
+
+    @property
+    def classical_free_energy(self):
+
+        log_corner_norms = self.list_of_log_corner_norms
+        log_tm_norms = self.list_of_log_tm_norms
+
+        n = len(log_corner_norms)
+        # assert n == len(log_tm_norms)
+
+        # print('n', n)
+        # print('iter', self.iter_counter)
+
+        sum_of_log_norms = sum(log_corner_norms)
+        sum_of_log_norms += sum(2 * ((n - 1 - i) // 4) * sum(log_tm_norms[i:i+4]) for i in range(0, n, 4))
+
+        w = 4 * self.log_weight_norm * (self.iter_counter ** 2)
+
+        trace_ctm4 = self.calculate_trace_ctm4()
+
+        f = - (np.log(trace_ctm4) + sum_of_log_norms + w) / ((2 * (self.iter_counter + 1)) ** 2)
+        return f * self.temperature / 2  # factor of 2 is precise only in thermodynamic limit
+
+    @property
+    def fast_free_energy(self):
+        w = self.log_weight_norm
+        f = - sum(self.list_of_log_tm_norms[-i] for i in range(1, 5)) / 4 - w
+        return f * self.temperature / 2  # factor of 2 is precise only in thermodynamic limit
 
     def ctmrg_extend_and_renormalize(self, num_of_steps=1, dim=None, rotate=True):
         """Performs num_of_steps iterations of ctmrg algorithm for given cut-off dim and returns nothing."""
@@ -597,12 +650,16 @@ class CTMRG(object):
             for j in range(4):
                 corner_norm = np.max(np.abs(self.corners[j]))
                 self.corners[j] /= corner_norm
+                self.list_of_log_corner_norms.append(np.log(corner_norm))
                 tm_norm = np.max(np.abs(self.tms[j]))
                 self.tms[j] /= tm_norm
+                self.list_of_log_tm_norms.append(np.log(tm_norm))
                 # print('corner_norm', corner_norm)
                 # print('tm_norm', tm_norm)
 
-    def ctmrg_iteration(self, num_of_steps=25):
+        self.iter_counter += num_of_steps
+
+    def ctmrg_iteration(self, num_of_steps=100):
         """Performs at most num_of_steps iterations of ctmrg algorithm and prints energy after each iteration.
         Returns the final energy, "precision", and number of iterations."""
 
@@ -610,6 +667,9 @@ class CTMRG(object):
         energy_mem = -1
         # correlation_length_0 = 0
         # correlation_length_mem_0 = -1
+
+        fast_free_energy = 0
+        fast_free_energy_mem = -1
 
         """
         # Procedure for stabilizing corners and tms: it doesn't seem to help much
@@ -619,8 +679,9 @@ class CTMRG(object):
 
         i = 0
         # for i in range(num_of_steps):
-        while abs(energy - energy_mem) > 1.E-12 and i < num_of_steps:
-        # while abs(correlation_length_0 - correlation_length_mem_0) > 1.E-7 and i < num_of_steps:
+        while abs(fast_free_energy - fast_free_energy_mem) > 1.E-14 and i < num_of_steps:
+            # while abs(energy - energy_mem) > 1.E-16 and i < num_of_steps:
+            # while abs(correlation_length_0 - correlation_length_mem_0) > 1.E-7 and i < num_of_steps:
 
             self.ctmrg_extend_and_renormalize()
 
@@ -633,9 +694,14 @@ class CTMRG(object):
 
             energy_mem = energy
             energy = measurement(self.weight, self.corners, self.tms, self.weight_imp)
+            free_energy = self.classical_free_energy
+
+            fast_free_energy_mem = fast_free_energy
+            fast_free_energy = self.fast_free_energy
 
             try:
                 # correlation_length_mem_0 = correlation_length_0
+                raise ValueError
                 correlation_length = calculate_correlation_length(self.tms[1], self.tms[3])
                 # correlation_length_0 = correlation_length[0]
                 # correlation_length_02 = calculate_correlation_length(self.tms[0], self.tms[2])
@@ -645,8 +711,12 @@ class CTMRG(object):
             # print('ctm iter', i, 3 * energy / 2, *correlation_length)
             # print('ctm iter', i, 3 * energy / 2, correlation_length, correlation_length_02)
             # print(f"""{i + 1}\t{np.real(3 * energy / 2)}\t{' '.join(str(cl) for cl in correlation_length)}""")
+            # print('f = ', self.classical_free_energy())
             tab = '\t'
-            print(f"""{i + 1}\t{3 * energy / 2}\t\t{tab.join(str(cl) for cl in correlation_length)}""")
+            # print(f"""{i + 1}\t{3 * energy / 2}\t\t{tab.join(str(cl) for cl in correlation_length)}""")
+            print(f"{i + 1}\t{energy}\t{free_energy}\t{fast_free_energy}"
+                  f"\t\t{tab.join(str(cl) for cl in correlation_length)}")
+
             i += 1
 
         return energy, abs(energy - energy_mem), correlation_length, i

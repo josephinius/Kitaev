@@ -471,7 +471,7 @@ k = 1.
 h = 0.E-14  # external field - not introduced consistently for all settings
 # print('field', h)
 D = 4  # max virtual (bond) dimension
-m = 24  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
+m = 16  # bond dimension for coarse-graining (TRG or CTMRG); m should be at least D * D
 
 method = 'CTMRG'  # TRG or CTMRG
 dojob = 'ITE'  # Dimer or ITE
@@ -657,6 +657,8 @@ else:
 # f.write('%d\t\t%.15f\t%d\n' % (0, np.real(energy), num_of_iter))
 f.close()
 
+exit()
+
 energy_old = -1
 
 lambdas_memory = copy.deepcopy(lambdas)
@@ -754,6 +756,9 @@ while tau >= tau_final and (j * refresh < 2_500):
         # tau /= 10
         # u_gates = np.array([construct_ite_operator(tau, hamiltonian).reshape(d, d, d, d) for hamiltonian in H])
         # u_gates = [exp_ham.reshape(d, d, d, d) for exp_ham in kitaev_spin_one_ite_operator(tau)]
+
+    exit()
+
     j += 1
 
 """
