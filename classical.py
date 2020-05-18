@@ -68,7 +68,7 @@ def hamiltonian_potts_corner(*s, h=.0, g=.0, h_direction=0, g_direction=0):
 potts_ham_tuple = (hamiltonian_potts_weight, hamiltonian_potts_tm, hamiltonian_potts_corner)
 
 
-# TODO: Clock model
+# Clock model
 
 
 def hamiltonian_clock_weight(*s, h=.0, h_direction=0):  # s1, s2, s3, s4 = s
