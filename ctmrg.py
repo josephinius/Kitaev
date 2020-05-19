@@ -629,14 +629,18 @@ class CTMRG(object):
 
         trace_ctm4 = self.calculate_trace_ctm4()
 
-        f = - (np.log(trace_ctm4) + sum_of_log_norms + w) / ((2 * (self.iter_counter + 1)) ** 2)
-        return f * self.temperature / 2  # factor of 2 is precise only in thermodynamic limit
+        num_of_sites = 2 * ((2 * (self.iter_counter + 1)) ** 2) + 4 * (self.iter_counter + 1)
+
+        f = - (np.log(trace_ctm4) + sum_of_log_norms + w) / num_of_sites
+        return f * self.temperature
 
     @property
     def fast_free_energy(self):
+        # w = self.log_weight_norm * (self.iter_counter / (self.iter_counter + 1)) ** 2
         w = self.log_weight_norm
-        f = - sum(self.list_of_log_tm_norms[-i] for i in range(1, 5)) / 4 - w
-        return f * self.temperature / 2  # factor of 2 is precise only in thermodynamic limit
+        f = - w - sum(self.list_of_log_tm_norms[-i] for i in range(1, 5)) / 4
+        # return f * self.temperature / (2 + 1 / (self.iter_counter + 1))
+        return f * self.temperature / 2
 
     def ctmrg_extend_and_renormalize(self, num_of_steps=1, dim=None, rotate=True):
         """Performs num_of_steps iterations of ctmrg algorithm for given cut-off dim and returns nothing."""
@@ -678,8 +682,8 @@ class CTMRG(object):
         """
 
         i = 0
-        # for i in range(num_of_steps):
-        while abs(fast_free_energy - fast_free_energy_mem) > 1.E-14 and i < num_of_steps:
+        for i in range(num_of_steps):
+            # while abs(fast_free_energy - fast_free_energy_mem) > 1.E-14 and i < num_of_steps:
             # while abs(energy - energy_mem) > 1.E-16 and i < num_of_steps:
             # while abs(correlation_length_0 - correlation_length_mem_0) > 1.E-7 and i < num_of_steps:
 

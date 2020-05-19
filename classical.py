@@ -223,6 +223,18 @@ elif model == "Clock":
 with open(file_name, 'w') as f:
     f.write(f'# dim={dim}, h={h}, g={g}\n')
 
+# free energy calculation test
+w, tm, corner = initialization(hamiltonian, temperature, h, g)
+weight = w
+tms = [tm[:] for _ in range(4)]
+corners = [corner[:] for _ in range(4)]
+weight_imp = w
+ctm = ctmrg.CTMRG(dim, weight, corners, tms, weight_imp, algorithm='Orus')
+ctm.temperature = temperature
+ctm.ctmrg_iteration(100_000)
+
+exit()
+
 for temperature in np.linspace(2.0, 2.5, num=50, endpoint=False):
 
     w, tm, corner = initialization(hamiltonian, temperature, h, g)
