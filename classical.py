@@ -100,7 +100,86 @@ def hamiltonian_clock_corner(*s, h=.0, g=.0, h_direction=0, g_direction=0):  # s
 clock_ham_tuple = (hamiltonian_clock_weight, hamiltonian_clock_tm, hamiltonian_clock_corner)
 
 
-# TODO: Model of social influence
+# Model of social influence
+
+
+def social_interaction(s1, s2):
+
+    # TODO: use integer representation instead of tuples...
+    s1a, s1b = s1
+    s2a, s2b = s2
+
+    t1a, t1b, t2a, t2b = map(lambda x: 2 * math.pi / Q, (s1a, s1b, s2a, s2b))
+
+    return - delta_function(s1a, s2a) * cos(t1b - t2b) - delta_function(s1b, s2b) * cos(t1a - t2a)
+
+
+def hamiltonian_social_weight(*s, h=.0, h_direction=(0, 0)):
+    """
+
+    Case of two features F=2 of Q traits each.
+
+    (s1a, s1b), (s2a, s2b), (s3a, s3b), (s4a, s4b) = s
+
+    """
+
+    s1, s2, s3, s4 = s
+
+    interaction_terms = (social_interaction(s1, s2) + social_interaction(s2, s3) +
+                         social_interaction(s3, s4) + social_interaction(s4, s1))
+
+    # Obviously, there are many reasonable ways how to introduce the global field.
+    global_field_terms = h * (social_interaction(s1, h_direction) + social_interaction(s2, h_direction) +
+                              social_interaction(s3, h_direction) + social_interaction(s4, h_direction)) / 2
+
+    return interaction_terms + global_field_terms
+
+
+def hamiltonian_social_tm(*s, h=.0, g=.0, h_direction=(0, 0), g_direction=(0, 0)):
+    """
+
+    Case of two features F=2 of Q traits each.
+
+    (s1a, s1b), (s2a, s2b), (s3a, s3b), (s4a, s4b) = s
+
+    """
+
+    s1, s2, s3, s4 = s
+
+    interaction_terms = (social_interaction(s1, s2) + social_interaction(s2, s3) +
+                         social_interaction(s3, s4) + social_interaction(s4, s1))
+
+    global_field_terms = h * (2 * social_interaction(s1, h_direction) + social_interaction(s2, h_direction) +
+                              social_interaction(s3, h_direction) + social_interaction(s4, h_direction)) / 2
+
+    boundary_field_terms = g * social_interaction(s1, g_direction) / 2
+
+    return interaction_terms + global_field_terms + boundary_field_terms
+
+
+def hamiltonian_social_corner(*s, h=.0, g=.0, h_direction=(0, 0), g_direction=(0, 0)):
+    """
+
+    Case of two features F=2 of Q traits each.
+
+    (s1a, s1b), (s2a, s2b), (s3a, s3b), (s4a, s4b) = s
+
+    """
+
+    s1, s2, s3, s4 = s
+
+    interaction_terms = (social_interaction(s1, s2) + social_interaction(s2, s3) +
+                         social_interaction(s3, s4) + social_interaction(s4, s1))
+
+    global_field_terms = h * (2 * social_interaction(s1, h_direction) + social_interaction(s2, h_direction) +
+                              social_interaction(s3, h_direction) + 2 * social_interaction(s4, h_direction)) / 2
+
+    boundary_field_terms = g * (social_interaction(s1, g_direction) + social_interaction(s4, g_direction))
+
+    return interaction_terms + global_field_terms + boundary_field_terms
+
+
+social_ham_tuple = (hamiltonian_social_weight, hamiltonian_social_tm, hamiltonian_social_corner)
 
 
 def initialization(hamiltonian, temperature, h, g):
