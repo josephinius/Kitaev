@@ -672,6 +672,9 @@ class CTMRG(object):
         # correlation_length_0 = 0
         # correlation_length_mem_0 = -1
 
+        free_energy = 0
+        free_energy_mem = -1
+
         fast_free_energy = 0
         fast_free_energy_mem = -1
 
@@ -682,8 +685,9 @@ class CTMRG(object):
         """
 
         i = 0
-        for i in range(num_of_steps):
-            # while abs(fast_free_energy - fast_free_energy_mem) > 1.E-14 and i < num_of_steps:
+        # for i in range(num_of_steps):  # Don't forget to comment out the incrementation of i in the body
+        # while abs(free_energy - free_energy_mem) > 1.E-10 and i < num_of_steps:
+        while abs(fast_free_energy - fast_free_energy_mem) > 1.E-14 and i < num_of_steps:
             # while abs(energy - energy_mem) > 1.E-16 and i < num_of_steps:
             # while abs(correlation_length_0 - correlation_length_mem_0) > 1.E-7 and i < num_of_steps:
 
@@ -698,10 +702,12 @@ class CTMRG(object):
 
             energy_mem = energy
             energy = measurement(self.weight, self.corners, self.tms, self.weight_imp)
-            free_energy = self.classical_free_energy
 
             fast_free_energy_mem = fast_free_energy
             fast_free_energy = self.fast_free_energy
+
+            free_energy_mem = free_energy
+            free_energy = self.classical_free_energy
 
             try:
                 # correlation_length_mem_0 = correlation_length_0

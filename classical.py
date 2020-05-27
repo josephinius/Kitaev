@@ -72,7 +72,7 @@ potts_ham_tuple = (hamiltonian_potts_weight, hamiltonian_potts_tm, hamiltonian_p
 
 
 def hamiltonian_clock_weight(*s, h=.0, h_direction=0):  # s1, s2, s3, s4 = s
-    z1, z2, z3, z4, h_direction = map(lambda x: 2 * math.pi / Q, s + (h_direction,))
+    z1, z2, z3, z4, h_direction = map(lambda x: 2 * math.pi * x / Q, s + (h_direction,))
     interaction_terms = - (cos(z1 - z2) + cos(z2 - z3) + cos(z3 - z4) + cos(z4 - z1))
     global_field_terms = - h * (cos(z1 - h_direction) + cos(z2 - h_direction) +
                                 cos(z3 - h_direction) + cos(z4 - h_direction)) / 2
@@ -80,7 +80,7 @@ def hamiltonian_clock_weight(*s, h=.0, h_direction=0):  # s1, s2, s3, s4 = s
 
 
 def hamiltonian_clock_tm(*s, h=.0, g=.0, h_direction=0, g_direction=0):  # s1, s2, s3, s4 = s
-    z1, z2, z3, z4, h_direction, g_direction = map(lambda x: 2 * math.pi / Q, s + (h_direction, g_direction))
+    z1, z2, z3, z4, h_direction, g_direction = map(lambda x: 2 * math.pi * x / Q, s + (h_direction, g_direction))
     interaction_terms = - (cos(z1 - z2) + cos(z2 - z3) + cos(z3 - z4) + cos(z4 - z1))
     global_field_terms = - h * (2 * cos(z1 - h_direction) + cos(z2 - h_direction) +
                                 cos(z3 - h_direction) + cos(z4 - h_direction)) / 2
@@ -89,7 +89,7 @@ def hamiltonian_clock_tm(*s, h=.0, g=.0, h_direction=0, g_direction=0):  # s1, s
 
 
 def hamiltonian_clock_corner(*s, h=.0, g=.0, h_direction=0, g_direction=0):  # s1, s2, s3, s4 = s
-    z1, z2, z3, z4, h_direction, g_direction = map(lambda x: 2 * math.pi / Q, s + (h_direction, g_direction))
+    z1, z2, z3, z4, h_direction, g_direction = map(lambda x: 2 * math.pi * x / Q, s + (h_direction, g_direction))
     interaction_terms = - (cos(z1 - z2) + cos(z2 - z3) + cos(z3 - z4) + cos(z4 - z1))
     global_field_terms = - h * (2 * cos(z1 - h_direction) + cos(z2 - h_direction) +
                                 cos(z3 - h_direction) + 2 * cos(z4 - h_direction)) / 2
@@ -105,16 +105,15 @@ clock_ham_tuple = (hamiltonian_clock_weight, hamiltonian_clock_tm, hamiltonian_c
 
 def social_interaction(s1, s2):
 
-    # TODO: use integer representation instead of tuples...
-    s1a, s1b = s1
-    s2a, s2b = s2
+    s1a, s1b = divmod(s1, Q)
+    s2a, s2b = divmod(s2, Q)
 
-    t1a, t1b, t2a, t2b = map(lambda x: 2 * math.pi / Q, (s1a, s1b, s2a, s2b))
+    t1a, t1b, t2a, t2b = map(lambda x: 2 * math.pi * x / Q, (s1a, s1b, s2a, s2b))
 
     return - delta_function(s1a, s2a) * cos(t1b - t2b) - delta_function(s1b, s2b) * cos(t1a - t2a)
 
 
-def hamiltonian_social_weight(*s, h=.0, h_direction=(0, 0)):
+def hamiltonian_social_weight(*s, h=.0, h_direction=0):
     """
 
     Case of two features F=2 of Q traits each.
@@ -122,6 +121,8 @@ def hamiltonian_social_weight(*s, h=.0, h_direction=(0, 0)):
     (s1a, s1b), (s2a, s2b), (s3a, s3b), (s4a, s4b) = s
 
     """
+
+    # TODO: generalize for multiple features F > 2
 
     s1, s2, s3, s4 = s
 
@@ -135,7 +136,7 @@ def hamiltonian_social_weight(*s, h=.0, h_direction=(0, 0)):
     return interaction_terms + global_field_terms
 
 
-def hamiltonian_social_tm(*s, h=.0, g=.0, h_direction=(0, 0), g_direction=(0, 0)):
+def hamiltonian_social_tm(*s, h=.0, g=.0, h_direction=0, g_direction=0):
     """
 
     Case of two features F=2 of Q traits each.
@@ -157,7 +158,7 @@ def hamiltonian_social_tm(*s, h=.0, g=.0, h_direction=(0, 0), g_direction=(0, 0)
     return interaction_terms + global_field_terms + boundary_field_terms
 
 
-def hamiltonian_social_corner(*s, h=.0, g=.0, h_direction=(0, 0), g_direction=(0, 0)):
+def hamiltonian_social_corner(*s, h=.0, g=.0, h_direction=0, g_direction=0):
     """
 
     Case of two features F=2 of Q traits each.
@@ -186,14 +187,16 @@ def initialization(hamiltonian, temperature, h, g):
 
     weight_ham, tm_ham, corner_ham = hamiltonian
 
-    w = np.zeros((Q, Q, Q, Q))
-    tm = np.zeros((Q, Q, Q))
-    corner = np.zeros((Q, Q))
+    qf = Q ** F
 
-    for i in range(Q):
-        for j in range(Q):
-            for k in range(Q):
-                for l in range(Q):
+    w = np.zeros((qf, qf, qf, qf))
+    tm = np.zeros((qf, qf, qf))
+    corner = np.zeros((qf, qf))
+
+    for i in range(qf):
+        for j in range(qf):
+            for k in range(qf):
+                for l in range(qf):
                     w[i, j, k, l] = np.exp(-weight_ham(i, j, k, l, h=h) / temperature)
                     tm[j, k, l] += np.exp(-tm_ham(i, j, k, l, h=h, g=g) / temperature)
                     corner[j, k] += np.exp(-corner_ham(i, j, k, l, h=h, g=g) / temperature)
@@ -205,13 +208,19 @@ def initialization(hamiltonian, temperature, h, g):
 
 file_name = 'classical.txt'
 
-dim = 8
+dim = 50
 
-model = "Ising"  # "Ising", "Potts", "Clock", (later also "Social")
+model = "Social"  # "Ising", "Potts", "Clock", (later also "Social")
 Q = 2
 temperature = .1
 h = .0
-g = .0
+g = 1.E-10
+
+# setting number of "features" F
+if model == "Social":
+    F = 2
+else:
+    F = 1
 
 if model == "Ising":
     hamiltonian = ising_ham_tuple
@@ -219,10 +228,13 @@ elif model == "Potts":
     hamiltonian = potts_ham_tuple
 elif model == "Clock":
     hamiltonian = clock_ham_tuple
+elif model == "Social":
+    hamiltonian = social_ham_tuple
 
 with open(file_name, 'w') as f:
     f.write(f'# dim={dim}, h={h}, g={g}\n')
 
+"""
 # free energy calculation test
 w, tm, corner = initialization(hamiltonian, temperature, h, g)
 weight = w
@@ -232,22 +244,23 @@ weight_imp = w
 ctm = ctmrg.CTMRG(dim, weight, corners, tms, weight_imp, algorithm='Orus')
 ctm.temperature = temperature
 ctm.ctmrg_iteration(100_000)
-
 exit()
+"""
 
-for temperature in np.linspace(2.0, 2.5, num=50, endpoint=False):
+for temperature in np.linspace(2.0, 3.0, num=100, endpoint=False):
 
     w, tm, corner = initialization(hamiltonian, temperature, h, g)
 
     weight = w
     tms = [tm[:] for _ in range(4)]
     corners = [corner[:] for _ in range(4)]
-    weight_imp = w
+    weight_imp = w  # not an actual impurity - just for testing
 
-    ctm = ctmrg.CTMRG(dim, weight, corners, tms, weight_imp, algorithm='Orus')
+    ctm = ctmrg.CTMRG(dim, weight, corners, tms, weight_imp, algorithm='Corboz')
     ctm.temperature = temperature
-    ctm.ctmrg_iteration(10_000)
+    ctm.ctmrg_iteration(1000)
+    free_energy = ctm.classical_free_energy
     fast_free_energy = ctm.fast_free_energy
     num_of_iter = ctm.iter_counter
     with open(file_name, 'a') as f:
-        f.write('%.15f\t%.15f\t%d\n' % (temperature, fast_free_energy, num_of_iter))
+        f.write('%.15f\t%.15f\t%.15f\t%d\n' % (temperature, free_energy, fast_free_energy, num_of_iter))
