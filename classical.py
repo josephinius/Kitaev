@@ -105,12 +105,36 @@ clock_ham_tuple = (hamiltonian_clock_weight, hamiltonian_clock_tm, hamiltonian_c
 
 def social_interaction(s1, s2):
 
-    s1a, s1b = divmod(s1, Q)
-    s2a, s2b = divmod(s2, Q)
+    a1 = [0] * F
+    a2 = [0] * F
 
-    t1a, t1b, t2a, t2b = map(lambda x: 2 * math.pi * x / Q, (s1a, s1b, s2a, s2b))
+    i = 0
+    while s1 > 0:
+        s1, a1[i] = divmod(s1, Q)
+        i += 1
 
-    return - delta_function(s1a, s2a) * cos(t1b - t2b) - delta_function(s1b, s2b) * cos(t1a - t2a)
+    i = 0
+    while s2 > 0:
+        s2, a2[i] = divmod(s2, Q)
+        i += 1
+
+    # s1a, s1b = divmod(s1, Q)
+    # s2a, s2b = divmod(s2, Q)
+    # t1a, t1b, t2a, t2b = map(lambda x: 2 * math.pi * x / Q, (s1a, s1b, s2a, s2b))
+    # return - delta_function(s1a, s2a) * cos(t1b - t2b) - delta_function(s1b, s2b) * cos(t1a - t2a)
+    # return - (delta_function(s1a, s2a) + delta_function(s1b, s2b)) * (cos(t1b - t2b) + cos(t1a - t2a))
+
+    # delta_sum = sum(delta_function(k, l) for k, l in zip(a1, a2))
+    delta_sum = sum((1 - delta_function(k, l)) for k, l in zip(a1, a2))
+
+    output = 0
+    for f in range(F):
+        # output -= (delta_sum - delta_function(a1[f], a2[f])) * cos(2 * math.pi * (a1[f] - a2[f]) / Q)
+        output -= (delta_sum - (1 - delta_function(a1[f], a2[f]))) * cos(2 * math.pi * (a1[f] - a2[f]) / Q)
+        # factor = all(delta_function(a1[x], a2[x]) for x in range(F) if x != f)
+        # output -= factor * cos(2 * math.pi * (a1[f] - a2[f]) / Q)
+
+    return output
 
 
 def hamiltonian_social_weight(*s, h=.0, h_direction=0):
@@ -121,8 +145,6 @@ def hamiltonian_social_weight(*s, h=.0, h_direction=0):
     (s1a, s1b), (s2a, s2b), (s3a, s3b), (s4a, s4b) = s
 
     """
-
-    # TODO: generalize for multiple features F > 2
 
     s1, s2, s3, s4 = s
 
@@ -232,7 +254,8 @@ elif model == "Social":
     hamiltonian = social_ham_tuple
 
 with open(file_name, 'w') as f:
-    f.write(f'# dim={dim}, h={h}, g={g}\n')
+    f.write(f'# {model} model, #features={F}, q={Q}, dim={dim}, h={h}, g={g}\n')
+    f.write('# Temp\t\t\tfree energy\t\tfast free energy\tnumber of iterations\n')
 
 """
 # free energy calculation test
@@ -247,7 +270,7 @@ ctm.ctmrg_iteration(100_000)
 exit()
 """
 
-for temperature in np.linspace(2.0, 3.0, num=100, endpoint=False):
+for temperature in np.linspace(.5, 11.0, num=420, endpoint=False):
 
     w, tm, corner = initialization(hamiltonian, temperature, h, g)
 
@@ -258,7 +281,7 @@ for temperature in np.linspace(2.0, 3.0, num=100, endpoint=False):
 
     ctm = ctmrg.CTMRG(dim, weight, corners, tms, weight_imp, algorithm='Corboz')
     ctm.temperature = temperature
-    ctm.ctmrg_iteration(1000)
+    ctm.ctmrg_iteration(10_000)
     free_energy = ctm.classical_free_energy
     fast_free_energy = ctm.fast_free_energy
     num_of_iter = ctm.iter_counter
