@@ -9,7 +9,7 @@ from scipy.sparse.linalg import bicgstab
 from scipy.linalg import polar
 
 from constants import sx12 as SX
-from constants import sy12 as SY
+# from constants import sy12 as SY
 from constants import sz12 as SZ
 
 """
