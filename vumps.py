@@ -41,7 +41,7 @@ def half_infinity_sum_iterative(h, a, eps_sum=1.E-16):
     accuracy, prev_accuracy = 1, float('inf')
     h_sum = h
     i = 0
-    while accuracy > eps_sum:
+    while eps_sum < accuracy:
         ht = apply_transfer_matrix(h_sum, a)
         h_sum_new = ht + h
         if i > 10 and prev_accuracy + eps_sum < accuracy:
@@ -447,9 +447,9 @@ def vumps_mpo(W, A, eta=1e-8):
 
     energy = 0
     energy_mem = -1
-    count = 0
+    num_of_iter = 0
 
-    while (delta > eta and abs(energy - energy_mem) > eta / 10) or count < 15:
+    while num_of_iter < 15 or (eta < delta or eta / 10 < abs(energy - energy_mem)):
 
         energy_mem = energy
         L_W, R_W, energy = get_Lh_Rh_mpo(A_L, A_R, C, W)
@@ -469,8 +469,8 @@ def vumps_mpo(W, A, eta=1e-8):
                     [[-1, -2, 1], [1, -3]])
         delta = linalg.norm(Ac - Al_C)
 
-        if count % 5 == 0:
-            print(50 * '-' + 'steps', count, 50 * '-')
+        if num_of_iter % 5 == 0:
+            print(50 * '-' + 'steps', num_of_iter, 50 * '-')
             print('energy = ', energy)
             print('delta = ', delta)
             print('Eac = ', E_Ac)
@@ -478,7 +478,7 @@ def vumps_mpo(W, A, eta=1e-8):
             print('Eac-Ec = ', E_Ac-E_C)
             print('Eac/Ec = ', E_Ac/E_C)
 
-        count += 1
+        num_of_iter += 1
 
     print(50 * '-' + ' final ' + 50 * '-')
     print('energy = ', energy)
@@ -533,17 +533,17 @@ if __name__ == '__main__':
 
     # TODO: verify tensor properties
 
-    e, e_mem = 0, 1
+    energy, e_mem = 0, 1
     num_of_iter = 0
     delta = eta * 10
 
-    while num_of_iter < 10 or (delta > eta or abs(e - e_mem) > eta / 10):
+    while num_of_iter < 10 or (eta < delta or eta / 10 < abs(energy - e_mem)):
 
-        e_mem = e
-        e = evaluate_energy_two_sites(A_L, A_R, Ac, h_loc)
-        print('iter: ', num_of_iter, 'energy: ', e, 'abs error: ', abs(e - exact))
+        e_mem = energy
+        energy = evaluate_energy_two_sites(A_L, A_R, Ac, h_loc)
+        print('iter: ', num_of_iter, 'energy: ', energy, 'abs error: ', abs(energy - exact))
 
-        e_eye = e * np.eye(d ** 2, d ** 2).reshape(d, d, d, d)
+        e_eye = energy * np.eye(d ** 2, d ** 2).reshape(d, d, d, d)
         h_L = create_h_l(A_L, h_loc)
         h_tilda = h_loc - e_eye
 
