@@ -345,7 +345,7 @@ No long-range interactions: W[a,a] = 0 (except for W[0,0] and W[d_w-1, d_w-1])
 """
 
 
-def Al_O_to_T_O(A_L, O):
+def create_mpo_transfer_matrix(A_L, O):
     """Returns MPO transfer matrix T_O."""
 
     T_O = ncon([A_L, O, np.conj(A_L)],
@@ -353,56 +353,64 @@ def Al_O_to_T_O(A_L, O):
     return T_O
 
 
-def get_Lh_Rh_mpo(A_L, A_R, C, W):
-    """Returns left and right fixed points of MPO and the energy expectation value."""
+def create_LW(A_L, C, W):
+    """Returns left fixed point of MPO and the energy expectation value."""
 
     d_w = W.shape[0]
     dim, d = A_L.shape[:2]
 
     L_W = np.zeros([d_w, dim, dim], dtype=complex)
-    L_W[d_w-1] = np.eye(dim, dim)
-
+    L_W[d_w - 1] = np.eye(dim, dim)
     for i in reversed(range(d_w - 1)):  # dw-2, dw-3, ..., 1, 0
-        for j in range(i+1, d_w):  # j > i: i+1, ..., d_w-1
-            L_W[i] += ncon([L_W[j], Al_O_to_T_O(A_L, W[j, i])],
+        for j in range(i + 1, d_w):  # j > i: i+1, ..., d_w-1
+            L_W[i] += ncon([L_W[j], create_mpo_transfer_matrix(A_L, W[j, i])],
                            [[1, 2], [-1, -2, 1, 2]])  # Lw[i] = Lw[j] T[j,i], see Eq. (C17)
 
     C_r = C.T
-
     R = ncon([np.conj(C_r), C_r],
              [[1, -1], [1, -2]])
-
-    # Eq. (C27) in Ref. [1]
     e_Lw = ncon([R, L_W[0]],
-                [[1, 2], [1, 2]])
-
+                [[1, 2], [1, 2]])  # Eq. (C27) in Ref. [1]
     L_W[0] -= e_Lw * np.eye(dim, dim)
-
     # L_W[0] = sum_right_left(L_W[0], A_L, C_r)
-    L_W[0] = half_infinity_sum_explicit(L_W[0], A_L, C_r)
-
+    L_W[0] = half_infinity_sum_explicit(L_W[0], A_L, C_r)  # Eq. (C25a) in Ref. [1]
     L_W = L_W.transpose([1, 0, 2])
+
+    return L_W, e_Lw
+
+
+def create_RW(A_R, C, W):
+    """Returns right fixed point of MPO and the energy expectation value."""
+
+    d_w = W.shape[0]
+    dim, d = A_R.shape[:2]
+
     R_W = np.zeros([d_w, dim, dim], dtype=complex)
     R_W[0] = np.eye(dim, dim)
-
     for i in range(1, d_w):  # 1,2,...,dw-1
         for j in reversed(range(i)):  # j < i: i-1,i-2,...,0
-            R_W[i] += ncon([R_W[j], Al_O_to_T_O(A_R, W[i, j])],
-                           [[1, 2], [-1, -2, 1, 2]])  # Rw[i] = T[i,j] R[j]
+            R_W[i] += ncon([R_W[j], create_mpo_transfer_matrix(A_R, W[i, j])],
+                           [[1, 2], [-1, -2, 1, 2]])  # Rw[i] = T[i,j] R[j], see Eq. (C18)
 
     L = ncon([np.conj(C), C],
              [[1, -1], [1, -2]])
-
-    # Eq. (C27) in Ref. [1]
     e_Rw = ncon([L, R_W[d_w-1]],
-                [[1, 2], [1, 2]])
-
+                [[1, 2], [1, 2]])  # Eq. (C27) in Ref. [1]
     R_W[d_w - 1] -= e_Rw * np.eye(dim, dim)
-
     # R_W[d_w-1] = sum_right_left(R_W[d_w-1], A_R, C)
-    R_W[d_w-1] = half_infinity_sum_explicit(R_W[d_w-1], A_R, C)
-
+    R_W[d_w-1] = half_infinity_sum_explicit(R_W[d_w-1], A_R, C)  # Eq. (C25b) in Ref. [1]
     R_W = R_W.transpose([1, 0, 2])
+
+    return R_W, e_Rw
+
+
+def get_Lh_Rh_mpo(A_L, A_R, C, W):
+    """Returns left and right fixed points of MPO and the energy expectation value."""
+
+    # TODO: assert W[a,a] = 0 (except for W[0,0] and W[d_w-1, d_w-1])
+
+    L_W, e_Lw = create_LW(A_L, C, W)
+    R_W, e_Rw = create_RW(A_R, C, W)
 
     return L_W, R_W, (e_Lw + e_Rw) / 2
 
@@ -519,28 +527,3 @@ if __name__ == '__main__':
         delta = linalg.norm(Ac - Al_C)  # norm of the gradient
         print('delta', delta)
         num_of_iter += 1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
