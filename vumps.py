@@ -407,12 +407,88 @@ def create_RW(A_R, C, W):
 def get_Lh_Rh_mpo(A_L, A_R, C, W):
     """Returns left and right fixed points of MPO and the energy expectation value."""
 
+    # TODO: assert lower-triangular form of W
     # TODO: assert W[a,a] = 0 (except for W[0,0] and W[d_w-1, d_w-1])
 
     L_W, e_Lw = create_LW(A_L, C, W)
     R_W, e_Rw = create_RW(A_R, C, W)
 
     return L_W, R_W, (e_Lw + e_Rw) / 2
+
+
+def vumps_mpo(W, A, eta=1e-8):
+
+    print('>' * 100)
+    print('VUMPS for MPO...')
+
+    def map_Hac(Ac):
+        Ac = Ac.reshape(dim, d, dim)
+        # e_eye = energy * np.eye(d ** 2, d ** 2).reshape(d, d, d, d)
+        Ac_new = ncon([L_W, Ac, W, R_W],
+                      [[-1, 3, 1], [1, 5, 2], [3, 4, 5, -2], [-3, 4, 2]])
+        return Ac_new.reshape(-1)
+
+    def map_Hc(C):
+        C = C.reshape(dim, dim)
+        C_new = ncon([L_W, C, R_W],
+                     [[-1, 3, 1], [1, 2], [-2, 3, 2]])
+        return C_new.reshape(-1)
+
+    dim, d, _ = A.shape
+
+    lam, gamma = umps_to_lam_gamma_form(A)
+    lam, gamma = lam_gamma_to_canonical(lam, gamma)
+    A_L, A_R = canonical_to_left_and_right_canonical(lam, gamma)
+
+    C = lam
+    Ac = ncon([A_L, C],
+              [[-1, -2, 1], [1, -3]])
+    delta = eta * 1000
+
+    energy = 0
+    energy_mem = -1
+    count = 0
+
+    while (delta > eta and abs(energy - energy_mem) > eta / 10) or count < 15:
+
+        energy_mem = energy
+        L_W, R_W, energy = get_Lh_Rh_mpo(A_L, A_R, C, W)
+
+        E_Ac, Ac = eigs(LinearOperator((dim ** 2 * d, dim ** 2 * d), matvec=map_Hac), k=1, which='SR',
+                        v0=Ac.reshape(-1), tol=delta / 10)
+
+        Ac = Ac.reshape(dim, d, dim)
+
+        E_C, C = eigs(LinearOperator((dim ** 2, dim ** 2), matvec=map_Hc), k=1, which='SR',
+                      v0=C.reshape(-1), tol=delta / 10)
+
+        C = C.reshape(dim, dim)
+
+        A_L, A_R = min_Ac_C(Ac, C)
+        Al_C = ncon([A_L, C],
+                    [[-1, -2, 1], [1, -3]])
+        delta = linalg.norm(Ac - Al_C)
+
+        if count % 5 == 0:
+            print(50 * '-' + 'steps', count, 50 * '-')
+            print('energy = ', energy)
+            print('delta = ', delta)
+            print('Eac = ', E_Ac)
+            print('Ec = ', E_C)
+            print('Eac-Ec = ', E_Ac-E_C)
+            print('Eac/Ec = ', E_Ac/E_C)
+
+        count += 1
+
+    print(50 * '-' + ' final ' + 50 * '-')
+    print('energy = ', energy)
+    energy_error = abs((energy - Exact) / Exact)
+    print('Error', energy_error)
+    # test_energy = ncon([L_W, Ac, W, np.conj(Ac), R_W],
+    #                    [[3, 2, 1], [1, 7, 4], [2, 5, 7, 8], [3, 8, 6], [6, 5, 4]])
+    # print('test_energy = ', test_energy)
+
+    return energy, Ac, C, A_L, A_R, L_W, R_W
 
 
 """
