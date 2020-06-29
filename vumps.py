@@ -334,6 +334,87 @@ def min_Ac_C(Ac, C):
     return al_tilda, ar_tilda
 
 
+def umps_to_mixed_canonical(A):
+    lam, gamma = umps_to_lam_gamma_form(A)
+    lam, gamma = lam_gamma_to_canonical(lam, gamma)
+    A_L, A_R = canonical_to_left_and_right_canonical(lam, gamma)
+    return A_L, A_R, lam
+
+
+def vumps_2sites(h_loc, A, eta=1e-7):
+
+    dim, d = A.shape[:2]
+
+    A_L, A_R, C = umps_to_mixed_canonical(A)
+
+    Ac = ncon([A_L, C],
+              [[-1, -2, 1], [1, -3]])
+
+    # TODO: verify tensor properties
+
+    energy, e_mem = 0, 1
+    num_of_iter = 0
+    delta = eta * 10
+
+    while num_of_iter < 10 or (eta < delta or eta / 10 < abs(energy - e_mem)):
+        e_mem = energy
+        energy = evaluate_energy_two_sites(A_L, A_R, Ac, h_loc)
+        print('iter: ', num_of_iter, 'energy: ', energy, 'abs error: ', abs(energy - exact))
+
+        # e_eye = energy * np.eye(d ** 2, d ** 2).reshape(d, d, d, d)
+        # h_tilda = h_loc - e_eye
+
+        h_L = create_h_l(A_L, h_loc)
+
+        C_r = C.T
+        L_h = half_infinity_sum_explicit(h_L, A_L, C_r, eps_sum=delta / 10)
+        # L_h = half_infinity_sum_explicit(h_L, A_L, C_r, eps_sum=1.E-10)
+
+        # h_L = create_h_l(A_L, h_tilda)
+        # L_h_iter = half_infinity_sum_iterative(h_L, A_L, eps_sum=1.E-10)
+        # print('relative difference:', linalg.norm(L_h - L_h_iter) / linalg.norm(L_h))
+
+        h_R = create_h_r(A_R, h_loc)
+
+        R_h = half_infinity_sum_explicit(h_R, A_R, C, eps_sum=delta / 10)
+        # R_h = half_infinity_sum_explicit(h_R, A_R, C, eps_sum=1.E-10)
+
+        # h_R = create_h_r(A_R, h_tilda)
+        # R_h_iter = half_infinity_sum_iterative(h_R, A_R, eps_sum=1.E-10)
+        # print('relative difference:', linalg.norm(R_h - R_h_iter) / linalg.norm(R_h))
+        # print(L_h - L_h_iter)
+
+        map_Hac = create_Hac_map(A_L, A_R, L_h, R_h, h_loc)
+        map_Hc = create_Hc_map(A_L, A_R, L_h, R_h, h_loc)
+
+        linear_system = LinearOperator((dim ** 2 * d, dim ** 2 * d), matvec=map_Hac)
+        E_Ac, Ac = eigs(linear_system, k=1, which='SR', v0=Ac.reshape(-1), tol=delta / 10)
+        # E_Ac, Ac = eigsh(linear_system, k=1, which='SA', v0=Ac.reshape(-1), tol=delta / 10)
+
+        print('E_Ac', E_Ac)
+
+        Ac = Ac.reshape(dim, d, dim)
+
+        linear_system = LinearOperator((dim ** 2, dim ** 2), matvec=map_Hc)
+        E_C, C = eigs(linear_system, k=1, which='SR', v0=C.reshape(-1), tol=delta / 10)
+        # E_C, C = eigsh(linear_system, k=1, which='SA', v0=C.reshape(-1), tol=delta / 10)
+
+        print('E_C', E_C)
+
+        C = C.reshape(dim, dim)
+
+        A_L, A_R = min_Ac_C(Ac, C)
+
+        Al_C = ncon([A_L, C],
+                    [[-1, -2, 1], [1, -3]])
+
+        delta = linalg.norm(Ac - Al_C)  # norm of the gradient
+        print('delta', delta)
+        num_of_iter += 1
+
+    return energy, delta, num_of_iter
+
+
 """
 ########################################################################################################################
 
@@ -435,12 +516,8 @@ def vumps_mpo(W, A, eta=1e-8):
         return C_new.reshape(-1)
 
     dim, d, _ = A.shape
+    A_L, A_R, C = umps_to_mixed_canonical(A)
 
-    lam, gamma = umps_to_lam_gamma_form(A)
-    lam, gamma = lam_gamma_to_canonical(lam, gamma)
-    A_L, A_R = canonical_to_left_and_right_canonical(lam, gamma)
-
-    C = lam
     Ac = ncon([A_L, C],
               [[-1, -2, 1], [1, -3]])
     delta = eta * 1000
@@ -482,7 +559,7 @@ def vumps_mpo(W, A, eta=1e-8):
 
     print(50 * '-' + ' final ' + 50 * '-')
     print('energy = ', energy)
-    energy_error = abs((energy - Exact) / Exact)
+    energy_error = abs((energy - exact) / exact)  # TODO: move this evaluation to main program
     print('Error', energy_error)
     # test_energy = ncon([L_W, Ac, W, np.conj(Ac), R_W],
     #                    [[3, 2, 1], [1, 7, 4], [2, 5, 7, 8], [3, 8, 6], [6, 5, 4]])
@@ -490,6 +567,8 @@ def vumps_mpo(W, A, eta=1e-8):
 
     return energy, Ac, C, A_L, A_R, L_W, R_W
 
+
+# TODO: create data structure for holding models
 
 """
 # XXZ model
@@ -503,103 +582,36 @@ hz_field = 0.49
 h_loc = (-np.kron(SX, SX) - (hz_field / 2) * (np.kron(SZ, np.eye(2)) + np.kron(np.eye(2), SZ)))
 h_loc = h_loc.reshape(2, 2, 2, 2)
 
+d_w = 3
+W = np.zeros([d_w, d_w, 2, 2], dtype=complex)
+W[0, 0] = W[2, 2] = np.eye(2)
+W[1, 0] = - SX
+W[2, 1] = SX
+W[2, 0] = - hz_field * SZ
+
 N = 1000000
 x = np.linspace(0, 2 * np.pi, N + 1)
 y = np.sqrt((hz_field - 1) ** 2 + 4 * hz_field * np.sin(x / 2) ** 2)
 exact = -0.5 * sum(y[1:(N + 1)] + y[:N]) / N
 
-print('exact', exact)
-
-# print(h_loc)
+print('Exact energy', exact)
 
 if __name__ == '__main__':
 
-    dim = 25  # virtual bond dimension
+    # TODO: add selection of model
+
+    dim = 8  # virtual bond dimension
     d = 2  # physical dimension
-    # seed = 1234
-    # np.random.seed(seed)
+    seed = 1
+    np.random.seed(seed)
     eta = 1e-7
 
     A = np.random.rand(dim, d, dim)
-    l0 = np.random.randn(dim, dim)
-    r0 = np.random.randn(dim, dim)
 
-    lam, gamma = umps_to_lam_gamma_form(A)
-    lam, gamma = lam_gamma_to_canonical(lam, gamma)
-    A_L, A_R = canonical_to_left_and_right_canonical(lam, gamma)
-    C = lam
-    Ac = ncon([A_L, C],
-              [[-1, -2, 1], [1, -3]])
+    ##################################################################################
 
-    # TODO: verify tensor properties
+    # vumps_2sites(h_loc, A, eta=1e-7)
 
-    energy, e_mem = 0, 1
-    num_of_iter = 0
-    delta = eta * 10
+    vumps_mpo(W, A, eta=1e-8)
 
-    while num_of_iter < 10 or (eta < delta or eta / 10 < abs(energy - e_mem)):
-
-        e_mem = energy
-        energy = evaluate_energy_two_sites(A_L, A_R, Ac, h_loc)
-        print('iter: ', num_of_iter, 'energy: ', energy, 'abs error: ', abs(energy - exact))
-
-        e_eye = energy * np.eye(d ** 2, d ** 2).reshape(d, d, d, d)
-        h_L = create_h_l(A_L, h_loc)
-        h_tilda = h_loc - e_eye
-
-        C_r = C.T  # TODO: check this
-
-        L_h = half_infinity_sum_explicit(h_L, A_L, C_r, eps_sum=delta / 10)
-        # L_h = half_infinity_sum_explicit(h_L, A_L, C_r, eps_sum=1.E-10)
-        h_L = create_h_l(A_L, h_tilda)
-        # L_h_iter = half_infinity_sum_iterative(h_L, A_L, eps_sum=1.E-10)
-
-        # print('L_h')
-        # print(L_h)
-        # print('L_h_iter')
-        # print(L_h_iter)
-
-        # print('relative difference:', linalg.norm(L_h - L_h_iter) / linalg.norm(L_h))
-
-        h_R = create_h_r(A_R, h_loc)
-
-        R_h = half_infinity_sum_explicit(h_R, A_R, C, eps_sum=delta / 10)
-        # R_h = half_infinity_sum_explicit(h_R, A_R, C, eps_sum=1.E-10)
-        h_R = create_h_r(A_R, h_tilda)
-        # R_h_iter = half_infinity_sum_iterative(h_R, A_R, eps_sum=1.E-10)
-
-        # print('R_h')
-        # print(R_h)
-        # print('R_h_iter')
-        # print(R_h_iter)
-
-        # print('relative difference:', linalg.norm(R_h - R_h_iter) / linalg.norm(R_h))
-        # print(L_h - L_h_iter)
-
-        map_Hac = create_Hac_map(A_L, A_R, L_h, R_h, h_loc)
-        map_Hc = create_Hc_map(A_L, A_R, L_h, R_h, h_loc)
-
-        linear_system = LinearOperator((dim ** 2 * d, dim ** 2 * d), matvec=map_Hac)
-        E_Ac, Ac = eigs(linear_system, k=1, which='SR', v0=Ac.reshape(-1), tol=delta / 10)
-        # E_Ac, Ac = eigsh(linear_system, k=1, which='SA', v0=Ac.reshape(-1), tol=delta / 10)
-
-        print('E_Ac', E_Ac)
-
-        Ac = Ac.reshape(dim, d, dim)
-
-        linear_system = LinearOperator((dim ** 2, dim ** 2), matvec=map_Hc)
-        E_C, C = eigs(linear_system, k=1, which='SR', v0=C.reshape(-1), tol=delta / 10)
-        # E_C, C = eigsh(linear_system, k=1, which='SA', v0=C.reshape(-1), tol=delta / 10)
-
-        print('E_C', E_C)
-
-        C = C.reshape(dim, dim)
-
-        A_L, A_R = min_Ac_C(Ac, C)
-
-        Al_C = ncon([A_L, C],
-                    [[-1, -2, 1], [1, -3]])
-
-        delta = linalg.norm(Ac - Al_C)  # norm of the gradient
-        print('delta', delta)
-        num_of_iter += 1
+    ##################################################################################
