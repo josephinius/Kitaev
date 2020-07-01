@@ -17,6 +17,7 @@ from constants import sz12 as SZ
 References:
 
 [1] Phys. Rev. B 97, 045145 (2018)
+[2] arXiv:1810.07006v3
 
 """
 
@@ -404,7 +405,6 @@ def vumps_2sites(h_loc, A, eta=1e-7):
         C = C.reshape(dim, dim)
 
         A_L, A_R = min_Ac_C(Ac, C)
-
         Al_C = ncon([A_L, C],
                     [[-1, -2, 1], [1, -3]])
 
@@ -531,13 +531,13 @@ def vumps_mpo(W, A, eta=1e-8):
         energy_mem = energy
         L_W, R_W, energy = get_Lh_Rh_mpo(A_L, A_R, C, W)
 
-        E_Ac, Ac = eigs(LinearOperator((dim ** 2 * d, dim ** 2 * d), matvec=map_Hac), k=1, which='SR',
-                        v0=Ac.reshape(-1), tol=delta / 10)
+        linear_system = LinearOperator((dim ** 2 * d, dim ** 2 * d), matvec=map_Hac)
+        E_Ac, Ac = eigs(linear_system, k=1, which='SR', v0=Ac.reshape(-1), tol=delta / 10)
 
         Ac = Ac.reshape(dim, d, dim)
 
-        E_C, C = eigs(LinearOperator((dim ** 2, dim ** 2), matvec=map_Hc), k=1, which='SR',
-                      v0=C.reshape(-1), tol=delta / 10)
+        linear_system = LinearOperator((dim ** 2, dim ** 2), matvec=map_Hc)
+        E_C, C = eigs(linear_system, k=1, which='SR', v0=C.reshape(-1), tol=delta / 10)
 
         C = C.reshape(dim, dim)
 
@@ -568,7 +568,197 @@ def vumps_mpo(W, A, eta=1e-8):
     return energy, Ac, C, A_L, A_R, L_W, R_W
 
 
-# TODO: create data structure for holding models
+'''
+########################################################################################################################
+
+Excitation Part (see Ref. [2])
+
+########################################################################################################################
+'''
+
+
+def get_T_RLw_or_T_LRw(A_R, W, A_L):
+
+    T_RL = ncon([A_R, W, np.conj(A_L)],
+                [[-3, 2, -6], [-5, -2, 2, 1], [-4, 1, -1]])
+    return T_RL
+
+
+def Tw_to_rl(T_W):
+    """
+    If T_W = T_Wr, then l<->r
+
+    :param T_W: transfer matrix with MPO
+    :return: left and right dominant eigenvectors of T_W
+    """
+
+    def map_r(r):
+        """If T_W = T_Wr, then it is map_l, for <l|T_Wr = <l|"""
+        r = r.reshape(dim, d_w, dim)
+        r_out = ncon([r, T_W],
+                     [[1, 2, 3], [1, 2, 3, -1, -2, -3]])
+        return r_out.reshape(-1)
+
+    def map_l(l):
+        """If T_W = T_Wr, then it is map_r, for T_Wr|r> = |r>"""
+        l = l.reshape(dim, d_w, dim)
+        l_out = ncon([T_W, l],
+                     [[-1, -2, -3, 1, 2, 3], [1, 2, 3]])
+        return l_out.reshape(-1)
+
+    dim, d_w = T_W.shape[:2]
+
+    linear_system = LinearOperator((d_w * dim ** 2, d_w * dim ** 2), matvec=map_l)
+    l_val, l = eigs(linear_system, k=1, which='LM')
+    l = l.reshape(dim, d_w, dim)
+
+    linear_system = LinearOperator((d_w * dim ** 2, d_w * dim ** 2), matvec=map_r)
+    r_val, r = eigs(linear_system, k=1, which='LM')
+    r = r.reshape(dim, d_w, dim)
+
+    return r, l
+
+
+def quasi_sum_right_left_mpo(T_W, r, l, x):
+    """
+    Uses (1-T_W)|y> = |x> with pseudo inverse to solve y
+
+    :param T_W: transfer matrix with MPO
+    :param r: right dominant vector (If T_W = T_Wr, then it is l)
+    :param l: left dominant vector (If T_W = T_Wr, then it is r)
+    :param x: tensor on which infinite sum is applied
+    :return: y
+    """
+
+    def trans_map(y):
+        y = y.reshape(dim, d_w, dim)
+        term1 = y
+        term2 = ncon([T_W, y],
+                     [[-1, -2, -3, 1, 2, 3], [1, 2, 3]])
+        term3 = ncon([r, y],
+                     [[1, 2, 3], [1, 2, 3]]) * l
+        y_out = term1 + term2 + term3
+        return y_out.reshape(-1)
+
+    dim, d_w = x.shape[:2]
+    x_tilda = x - ncon([x, r], [[1, 2, 3], [1, 2, 3]]) * l
+    linear_system = LinearOperator((d_w * dim ** 2, d_w * dim ** 2), matvec=trans_map)
+    y, info = bicgstab(linear_system, x_tilda.reshape(-1), x0=x_tilda.reshape(-1))
+    # y, info = bicg(linear_system, matvec=trans_map), x_tilda.reshape(-1), x0=x_tilda.reshape(-1))
+    y = y.reshape(dim, d_w, dim)
+
+    if info > 0:
+        raise NoConvergenceError(f'Convergence to tolerance not achieved, number of iterations: {info}')
+    if info < 0:
+        raise ValueError('Illegal input or breakdown')
+
+    return y
+
+
+def quasi_sum_right_left_2sites(T, r, l, x):
+    """
+    Uses (1-T_W)|y> = |x> with pseudo inverse to solve y
+
+    :param T: transfer matrix with MPO
+    :param r: right dominant vector (If T_W = T_Wr, then it is l)
+    :param l: left dominant vector (If T_W = T_Wr, then it is r)
+    :param x: tensor on which infinite sum we want to apply
+    :return: y
+    """
+
+    def trans_map(y):
+        y = y.reshape(dim, dim)
+        term1 = y
+        term2 = ncon([T, y],
+                     [[-1, -2, 1, 2], [1, 2]])
+        term3 = ncon([r, y],
+                     [[1, 2], [1, 2]]) * l
+        y_out = term1 + term2 + term3
+        return y_out.reshape(-1)
+
+    dim = x.shape[0]
+    x_tilda = x - ncon([x, r], [[1, 2], [1, 2]]) * l
+    linear_system = LinearOperator((dim ** 2, dim ** 2), matvec=trans_map)
+    y, info = bicgstab(linear_system, x_tilda.reshape(-1), x0=x_tilda.reshape(-1))
+    # y, info = bicg(linear_system, x_tilda.reshape(-1), x0=x_tilda.reshape(-1))
+    y = y.reshape(dim, dim)
+
+    if info > 0:
+        raise NoConvergenceError(f'Convergence to tolerance not achieved, number of iterations: {info}')
+    if info < 0:
+        raise ValueError('Illegal input or breakdown')
+
+    return y
+
+
+def combine_LBWA_L(L_W, B, W, A_L):
+    LBWA_L = ncon([L_W, B, W, np.conj(A_L)],
+                  [[1, 2, 3], [3, 5, -3], [2, -2, 5, 4], [1, 4, -1]])
+    return LBWA_L
+
+
+def combine_RBWA_R(R_W, B, W, A_R):
+    RBWA_R = ncon([R_W, B, W, np.conj(A_R)],
+                  [[1, 2, 3], [-3, 5, 3], [-2, 2, 5, 4], [1, 4, -1]])
+    return RBWA_R
+
+
+def quasiparticle_mpo(W, p, A_L, A_R, L_W, R_W):
+    """
+    :param W: MPO
+    :param p: momentum
+    :param A_L: Used to get mpo transfer matrix and LBWA_L
+    :param A_R: Used to get mpo transfer matrix and RBWA_R
+    :param L_W: Left fixed point of MPO, which is obtained from vumps_mpo
+    :param R_W: Right fixed point of MPO, which is obtained from vumps_mpo
+    :return: omega and X
+    """
+
+    T_RL = get_T_RLw_or_T_LRw(A_R, W, A_L)
+
+    W_r = W.transpose([1, 0, 2, 3])
+    T_LR = get_T_RLw_or_T_LRw(A_L, W_r, A_R)
+
+    r_L, l_L = Tw_to_rl(T_RL)
+    l_R, r_R = Tw_to_rl(T_LR)
+
+    T_RL *= np.exp(-1j * p)
+    T_LR *= np.exp(1j * p)
+
+    dim, d, _ = A_L.shape
+
+    A_tmp = A_L.reshape(dim * d, dim).T
+    V_L = linalg.null_space(A_tmp)
+    V_L = V_L.reshape(dim, d, dim*(d-1))
+
+    def map_effective_H(X):
+        """See Eq. (269) in Ref. [2]"""
+        X = X.reshape(dim * (d - 1), dim)
+        B = ncon([V_L, X],
+                 [[-1, -2, 1], [1, -3]])
+        LBWA_L = combine_LBWA_L(L_W, B, W, A_L)
+        RBWA_R = combine_RBWA_R(R_W, B, W, A_R)
+        L_B = quasi_sum_right_left_mpo(T_RL, r_L, l_L, LBWA_L)  # See Eq. (265) in Ref. [2]
+        R_B = quasi_sum_right_left_mpo(T_LR, l_R, r_R, RBWA_R)  # See Eq. (266) in Ref. [2]
+        term1 = np.exp(-1j * p) * ncon([L_B, A_R, W, R_W],
+                                       [[-1, 1, 2], [4, 5, 2], [1, 3, 5, -2], [-3, 3, 4]])
+        term2 = np.exp(1j * p) * ncon([L_W, A_L, W, R_B],
+                                      [[-1, 1, 2], [2, 5, 4], [1, 3, 5, -2], [-3, 3, 4]])
+        term3 = ncon([L_W, B, W, R_W],
+                     [[-1, 1, 2], [2, 5, 4], [1, 3, 5, -2], [-3, 3, 4]])
+        Teff_B = term1 + term2 + term3
+        Teff_X = ncon([Teff_B, np.conj(V_L)],
+                      [[1, 2, -2], [1, 2, -1]])
+        return Teff_X.reshape(-1)
+
+    linear_system = LinearOperator((dim ** 2*(d-1), dim ** 2*(d-1)), matvec=map_effective_H)
+    # omega, X = eigs(linear_system, k=10, which='SR', tol=1e-6)
+    omega, X = eigsh(linear_system, k=10, which='SA', tol=1e-6)
+
+    return omega, X
+
+
+# TODO: create data structure for storing models
 
 """
 # XXZ model
@@ -610,8 +800,15 @@ if __name__ == '__main__':
 
     ##################################################################################
 
-    # vumps_2sites(h_loc, A, eta=1e-7)
+    energy_2sites = vumps_2sites(h_loc, A, eta=1e-7)[0]
+    energy_mpo, Ac, C, A_L, A_R, L_W, R_W = vumps_mpo(W, A, eta=1e-8)
+    print('energy_2sites - energy_mpo:', energy_2sites - energy_mpo)
 
-    vumps_mpo(W, A, eta=1e-8)
+    p = 0.1  # momentum
+
+    omega, X = quasiparticle_mpo(W, p, A_L, A_R, L_W, R_W)
+
+    print('omega', omega)
+    # print('X', X)
 
     ##################################################################################
