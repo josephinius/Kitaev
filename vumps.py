@@ -57,22 +57,28 @@ def half_infinity_sum_iterative(h, a, eps_sum=1.E-16):
     return h_sum
 
 
-def create_map_y(a, r):
+def create_map_y(a, l):
     dim = a.shape[0]
 
     def inner(y):
         y = y.reshape(dim, dim)
         yt = apply_transfer_matrix(y, a)
-        yr = np.tensordot(y, r, axes=([0, 1], [0, 1])) * np.eye(dim)
+        yr = np.tensordot(y, l, axes=([0, 1], [0, 1])) * np.eye(dim)
         return (y - yt + yr).reshape(-1)
 
     return inner
 
 
-def half_infinity_sum_explicit(h, a, r, eps_sum=1.E-16):  # r stands for reduced density matrix (L, R)
-    map_y = create_map_y(a, r)
+def half_infinity_sum_explicit(h, a, c, eps_sum=1.E-10):  # r stands for reduced density matrix (L, R)
+
     dim = a.shape[0]
-    right_hand_side = h - np.tensordot(h, r, axes=([0, 1], [0, 1])) * np.eye(dim)
+
+    l = ncon([np.conj(c), c],
+             [[1, -1], [1, -2]])
+
+    map_y = create_map_y(a, l)
+
+    right_hand_side = h - np.tensordot(h, l, axes=([0, 1], [0, 1])) * np.eye(dim)
     right_hand_side = right_hand_side.reshape(-1)
     linear_system = LinearOperator((dim ** 2, dim ** 2), matvec=map_y)
     y, info = bicgstab(linear_system, right_hand_side, x0=right_hand_side, tol=eps_sum)
@@ -142,8 +148,8 @@ def create_transfer_map_l(lam, gamma):
 
     def inner(l):
         l = l.reshape(dim, dim)
-        l_out = ncon([l, np.conj(lam), np.conj(gamma), lam, gamma],
-                     [[1, 2], [1, 3], [3, 5, -1], [2, 4], [4, 5, -2]])
+        l_out = ncon([l, lam, gamma, np.conj(lam), np.conj(gamma)],
+                     [[3, 1], [1, 2], [2, 5, -2], [3, 4], [4, 5, -1]])
         return l_out
 
     return inner
@@ -190,6 +196,17 @@ def calculate_R(r):
     return u @ w_sqrt
 
 
+def get_L_or_R(l):
+    dtemp, utemp = linalg.eigh(l)
+    dtemp = abs(dtemp)
+    # chitemp = sum(dtemp > dtol)
+    chitemp = len(dtemp)
+    d = np.diag(dtemp[-1:-(chitemp + 1):-1])
+    U_da = np.conj(utemp[:, -1:-(chitemp + 1):-1].T)
+    L = np.sqrt(d) @ U_da
+    return L
+
+
 def lam_gamma_to_canonical(lam, gamma):
     """Transform general (\lambda, \Gamma) into canonical form."""
 
@@ -206,16 +223,17 @@ def lam_gamma_to_canonical(lam, gamma):
     _, r = eigs(LinearOperator((dim ** 2, dim ** 2), matvec=transfer_map_r), k=1, which='LM', v0=r)
     r = r.reshape(dim, dim)
 
-    L = calculate_L(l)
-    R = calculate_R(r)
+    # L = calculate_L(l)
+    # R = calculate_R(r)
+    L = get_L_or_R(l)
+    R = get_L_or_R(r)
 
-    u, s, vt = linalg.svd(L @ lam @ R, full_matrices=False)
+    u, s, vt = linalg.svd(L @ lam @ R.T, full_matrices=False)
     lam_new = np.diag(s)
-
-    gamma_new = ncon([vt @ linalg.inv(R), gamma, linalg.inv(L) @ u],
-                     [[-1, 1], [1, -2, 2], [2, -3]])
-
     lam_new = lam_new / linalg.norm(lam_new)
+
+    gamma_new = ncon([vt @ linalg.inv(R.T), gamma, linalg.inv(L) @ u],
+                     [[-1, 1], [1, -2, 2], [2, -3]])
 
     norm = ncon([lam_new @ lam_new, gamma_new, lam_new @ lam_new, np.conj(gamma_new)],
                 [[1, 4], [1, 3, 2], [2, 5], [4, 3, 5]])
@@ -229,9 +247,10 @@ def canonical_to_left_and_right_canonical(lam, gamma):
     """Returns left and right canonical form using canonical (\lambda, \Gamma) form."""
 
     left_canonical = ncon([lam, gamma],
-               [[-1, 1], [1, -2, -3]])
+                          [[-1, 1], [1, -2, -3]])
     right_canonical = ncon([gamma, lam],
-               [[-3, -2, 1], [1, -1]])
+                           [[-3, -2, 1], [1, -1]])
+
     return left_canonical, right_canonical
 
 
@@ -245,7 +264,7 @@ def evaluate_energy_two_sites(A_L, A_R, Ac, h):  # TODO: clean this function
     e = (e1 + e2) / 2
     # print('abs(e-e1) = ', abs(e-e1))
 
-    if abs(e - e1) > 1e-14:
+    if abs(e - e1) > 1e-12:
         print('e1 is not close to e2!')
         print('abs(e-e1) = ', abs(e - e1))
         # exit()
@@ -255,7 +274,7 @@ def evaluate_energy_two_sites(A_L, A_R, Ac, h):  # TODO: clean this function
 
 def create_Hac_map(A_L, A_R, L_h, R_h, h):
 
-    dim, d, _ = A_L.shape
+    dim, d = A_L.shape[:2]
 
     def inner(Ac):
         Ac = Ac.reshape(dim, d, dim)
@@ -296,9 +315,9 @@ def create_Hc_map(A_L, A_R, L_h, R_h, h):
 
 def min_Ac_C(Ac, C):
 
-    print('In min_Ac_C...')
+    # print('In min_Ac_C...')
 
-    dim, d, _ = Ac.shape
+    dim, d = Ac.shape[:2]
 
     U_Ac, S_Ac, V_dagger_Ac = linalg.svd(Ac.reshape(dim * d, dim), full_matrices=False)
     U_c, S_c, V_dagger_c = linalg.svd(C, full_matrices=False)
@@ -332,6 +351,7 @@ def min_Ac_C(Ac, C):
 
     print('right test:', linalg.norm(ar_tilda - A_R))
 
+    # return A_L, A_R
     return al_tilda, ar_tilda
 
 
@@ -355,32 +375,32 @@ def vumps_2sites(h_loc, A, eta=1e-7):
 
     energy, e_mem = 0, 1
     num_of_iter = 0
-    delta = eta * 10
+    delta = eta * 1000
 
     while num_of_iter < 10 or (eta < delta or eta / 10 < abs(energy - e_mem)):
         e_mem = energy
         energy = evaluate_energy_two_sites(A_L, A_R, Ac, h_loc)
         print('iter: ', num_of_iter, 'energy: ', energy, 'abs error: ', abs(energy - exact))
 
-        # e_eye = energy * np.eye(d ** 2, d ** 2).reshape(d, d, d, d)
-        # h_tilda = h_loc - e_eye
+        e_eye = energy * np.eye(d ** 2, d ** 2).reshape(d, d, d, d)
+        h_tilda = h_loc - e_eye
 
-        h_L = create_h_l(A_L, h_loc)
+        # h_L = create_h_l(A_L, h_loc)
+        h_L = create_h_l(A_L, h_tilda)
 
         C_r = C.T
         L_h = half_infinity_sum_explicit(h_L, A_L, C_r, eps_sum=delta / 10)
         # L_h = half_infinity_sum_explicit(h_L, A_L, C_r, eps_sum=1.E-10)
 
-        # h_L = create_h_l(A_L, h_tilda)
         # L_h_iter = half_infinity_sum_iterative(h_L, A_L, eps_sum=1.E-10)
         # print('relative difference:', linalg.norm(L_h - L_h_iter) / linalg.norm(L_h))
 
-        h_R = create_h_r(A_R, h_loc)
+        # h_R = create_h_r(A_R, h_loc)
+        h_R = create_h_r(A_R, h_tilda)
 
         R_h = half_infinity_sum_explicit(h_R, A_R, C, eps_sum=delta / 10)
         # R_h = half_infinity_sum_explicit(h_R, A_R, C, eps_sum=1.E-10)
 
-        # h_R = create_h_r(A_R, h_tilda)
         # R_h_iter = half_infinity_sum_iterative(h_R, A_R, eps_sum=1.E-10)
         # print('relative difference:', linalg.norm(R_h - R_h_iter) / linalg.norm(R_h))
         # print(L_h - L_h_iter)
@@ -401,6 +421,8 @@ def vumps_2sites(h_loc, A, eta=1e-7):
         # E_C, C = eigsh(linear_system, k=1, which='SA', v0=C.reshape(-1), tol=delta / 10)
 
         print('E_C', E_C)
+
+        print('Eac/Ec', E_Ac / E_C)
 
         C = C.reshape(dim, dim)
 
@@ -497,7 +519,7 @@ def get_Lh_Rh_mpo(A_L, A_R, C, W):
     return L_W, R_W, (e_Lw + e_Rw) / 2
 
 
-def vumps_mpo(W, A, eta=1e-8):
+def vumps_mpo(W, A, eta=1e-10):
 
     print('>' * 100)
     print('VUMPS for MPO...')
@@ -520,6 +542,7 @@ def vumps_mpo(W, A, eta=1e-8):
 
     Ac = ncon([A_L, C],
               [[-1, -2, 1], [1, -3]])
+
     delta = eta * 1000
 
     energy = 0
@@ -643,7 +666,7 @@ def quasi_sum_right_left_mpo(T_W, r, l, x):
     dim, d_w = x.shape[:2]
     x_tilda = x - ncon([x, r], [[1, 2, 3], [1, 2, 3]]) * l
     linear_system = LinearOperator((d_w * dim ** 2, d_w * dim ** 2), matvec=trans_map)
-    y, info = bicgstab(linear_system, x_tilda.reshape(-1), x0=x_tilda.reshape(-1))
+    y, info = bicgstab(linear_system, x_tilda.reshape(-1), x0=x_tilda.reshape(-1), tol=1e-10)
     # y, info = bicg(linear_system, matvec=trans_map), x_tilda.reshape(-1), x0=x_tilda.reshape(-1))
     y = y.reshape(dim, d_w, dim)
 
@@ -679,7 +702,7 @@ def quasi_sum_right_left_2sites(T, r, l, x):
     dim = x.shape[0]
     x_tilda = x - ncon([x, r], [[1, 2], [1, 2]]) * l
     linear_system = LinearOperator((dim ** 2, dim ** 2), matvec=trans_map)
-    y, info = bicgstab(linear_system, x_tilda.reshape(-1), x0=x_tilda.reshape(-1))
+    y, info = bicgstab(linear_system, x_tilda.reshape(-1), x0=x_tilda.reshape(-1), tol=1e-10)
     # y, info = bicg(linear_system, x_tilda.reshape(-1), x0=x_tilda.reshape(-1))
     y = y.reshape(dim, dim)
 
@@ -729,7 +752,7 @@ def quasiparticle_mpo(W, p, A_L, A_R, L_W, R_W):
 
     A_tmp = A_L.reshape(dim * d, dim).T
     V_L = linalg.null_space(A_tmp)
-    V_L = V_L.reshape(dim, d, dim*(d-1))
+    V_L = V_L.reshape(dim, d, dim * (d - 1))
 
     def map_effective_H(X):
         """See Eq. (269) in Ref. [2]"""
@@ -751,11 +774,78 @@ def quasiparticle_mpo(W, p, A_L, A_R, L_W, R_W):
                       [[1, 2, -2], [1, 2, -1]])
         return Teff_X.reshape(-1)
 
-    linear_system = LinearOperator((dim ** 2*(d-1), dim ** 2*(d-1)), matvec=map_effective_H)
+    linear_system = LinearOperator((dim ** 2 * (d - 1), dim ** 2 * (d - 1)), matvec=map_effective_H)
     # omega, X = eigs(linear_system, k=10, which='SR', tol=1e-6)
     omega, X = eigsh(linear_system, k=10, which='SA', tol=1e-6)
 
     return omega, X
+
+
+def domain_sum_right_left(T_R2L1, x):
+    """Note: Regular inverse is used instead of pseudo-inverse."""
+
+    dim, d_w = x.shape[:2]
+
+    def map_inv_L(y):
+        y = y.reshape(dim, d_w, dim)
+        term1 = y
+        term2 = ncon([T_R2L1, y],
+                     [[-1, -2, -3, 1, 2, 3], [1, 2, 3]])
+        y_out = term1 - term2
+        return y_out.reshape(-1)
+
+    linear_system = LinearOperator((dim ** 2 * d_w, dim ** 2 * d_w), matvec=map_inv_L)
+    y, info = bicgstab(linear_system, x.reshape(-1), x0=x.reshape(-1))
+
+    if info > 0:
+        raise NoConvergenceError(f'Convergence to tolerance not achieved, number of iterations: {info}')
+    if info < 0:
+        raise ValueError('Illegal input or breakdown')
+
+    y = y.reshape(dim, d_w, dim)
+    return y
+
+
+def quasiparticle_domain(W, p, A_L1, A_R2, L_W, R_W):
+
+    dim, d = A_L1.shape[:2]
+    A_tmp = A_L1.reshape(dim * d, dim).T
+    V_L = linalg.null_space(A_tmp)
+    V_L = V_L.reshape(dim, d, dim * (d - 1))
+    T_R2L1 = get_T_RLw_or_T_LRw(A_R2, W, A_L1)
+    lval, l = eigs(T_R2L1.reshape(d_w * dim ** 2, d_w * dim ** 2), k=1, which='LM')
+    A_R2 *= np.conj(lval) / linalg.norm(lval)
+    T_R2L1 = get_T_RLw_or_T_LRw(A_R2, W, A_L1)
+    T_R2L1 *= np.exp(-1j * p)
+    W_r = W.transpose([1, 0, 2, 3])
+    T_L1R2 = get_T_RLw_or_T_LRw(A_L1, W_r, A_R2)
+    T_L1R2 *= np.exp(1j * p)
+
+    def map_effective_H(X):
+        X = X.reshape(dim * (d - 1), dim)
+        B = ncon([V_L, X],
+                 [[-1, -2, 1], [1, -3]])
+        LBWA_L1 = combine_LBWA_L(L_W, B, W, A_L1)
+        RBWA_R2 = combine_RBWA_R(R_W, B, W, A_R2)
+
+        L_B = domain_sum_right_left(T_R2L1, LBWA_L1)
+        R_B = domain_sum_right_left(T_L1R2, RBWA_R2)
+
+        term1 = np.exp(-1j * p) * ncon([L_B, A_R2, W, R_W],
+                                       [[-1, 1, 2], [4, 5, 2], [1, 3, 5, -2], [-3, 3, 4]])
+        term2 = np.exp(1j * p) * ncon([L_W, A_L1, W, R_B],
+                                  [[-1, 1, 2], [2, 5, 4], [1, 3, 5, -2], [-3, 3, 4]])
+        term3 = ncon([L_W, B, W, R_W],
+                     [[-1, 1, 2], [2, 5, 4], [1, 3, 5, -2], [-3, 3, 4]])
+        Teff_B = term1 + term2 + term3
+        Teff_X = ncon([Teff_B, np.conj(V_L)],
+                      [[1, 2, -2], [1, 2, -1]])
+        return Teff_X.reshape(-1)
+
+    linear_system = LinearOperator((dim ** 2 * (d - 1), dim ** 2 * (d - 1)), matvec=map_effective_H)
+    # omega, X = eigs(linear_system, matvec=map_effective_H), k=10, which='SR', tol=1e-6)
+    omega, _ = eigsh(linear_system, k=10, which='SA', tol=1e-10)
+    return omega
 
 
 # TODO: create data structure for storing models
@@ -768,7 +858,7 @@ h_loc = np.real(h_loc).reshape(2, 2, 2, 2)
 """
 
 # TFI model
-hz_field = 0.49
+hz_field = 1.0
 h_loc = (-np.kron(SX, SX) - (hz_field / 2) * (np.kron(SZ, np.eye(2)) + np.kron(np.eye(2), SZ)))
 h_loc = h_loc.reshape(2, 2, 2, 2)
 
@@ -784,6 +874,11 @@ x = np.linspace(0, 2 * np.pi, N + 1)
 y = np.sqrt((hz_field - 1) ** 2 + 4 * hz_field * np.sin(x / 2) ** 2)
 exact = -0.5 * sum(y[1:(N + 1)] + y[:N]) / N
 
+
+def tfi_elem_excitation(k, h=hz_field):
+    return np.sqrt(1 + h ** 2 - 2 * h * np.cos(k))
+
+
 print('Exact energy', exact)
 
 if __name__ == '__main__':
@@ -792,9 +887,9 @@ if __name__ == '__main__':
 
     dim = 8  # virtual bond dimension
     d = 2  # physical dimension
-    seed = 1
-    np.random.seed(seed)
-    eta = 1e-7
+    # seed = 1
+    # np.random.seed(seed)
+    # eta = 1e-8
 
     A = np.random.rand(dim, d, dim)
 
@@ -802,13 +897,28 @@ if __name__ == '__main__':
 
     energy_2sites = vumps_2sites(h_loc, A, eta=1e-7)[0]
     energy_mpo, Ac, C, A_L, A_R, L_W, R_W = vumps_mpo(W, A, eta=1e-8)
+    print('vumps mpo energy:', energy_mpo)
+    # print('C')
+    # print(C)
     print('energy_2sites - energy_mpo:', energy_2sites - energy_mpo)
 
-    p = 0.1  # momentum
+    p = 2.  # momentum
 
     omega, X = quasiparticle_mpo(W, p, A_L, A_R, L_W, R_W)
 
-    print('omega', omega)
+    print('omega', omega - energy_mpo)
     # print('X', X)
+    print('elementary excitation (exact): ', tfi_elem_excitation(p))
+
+    ##################################################################################
+
+    A_L1 = A_L
+    A_R2 = ncon([A_R, SZ],
+                [[-1, 1, -3], [1, -2]])
+
+    omega = quasiparticle_domain(W, p, A_L1, A_R2, L_W, R_W)
+
+    print('domain...')
+    print(omega - energy_mpo)
 
     ##################################################################################
