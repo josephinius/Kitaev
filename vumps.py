@@ -7,6 +7,7 @@ from scipy.sparse.linalg import eigsh
 from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import bicgstab
 from scipy.linalg import polar
+from tqdm import tqdm
 
 from constants import sx12 as SX
 # from constants import sy12 as SY
@@ -69,7 +70,7 @@ def create_map_y(a, l):
     return inner
 
 
-def half_infinity_sum_explicit(h, a, c, eps_sum=1.E-10):  # r stands for reduced density matrix (L, R)
+def half_infinity_sum_explicit(h, a, c, eps_sum=1.E-12):  # r stands for reduced density matrix (L, R)
 
     dim = a.shape[0]
 
@@ -315,42 +316,32 @@ def create_Hc_map(A_L, A_R, L_h, R_h, h):
 
 def min_Ac_C(Ac, C):
 
-    # print('In min_Ac_C...')
-
     dim, d = Ac.shape[:2]
 
+    """
     U_Ac, S_Ac, V_dagger_Ac = linalg.svd(Ac.reshape(dim * d, dim), full_matrices=False)
     U_c, S_c, V_dagger_c = linalg.svd(C, full_matrices=False)
-
     A_L = (U_Ac @ V_dagger_Ac) @ np.conj(U_c @ V_dagger_c).T
     A_L = A_L.reshape(dim, d, dim)
-
     Ac_r = Ac.transpose([2, 1, 0])
     C_r = C.T
-
     U_Ac, S_Ac, V_dagger_Ac = linalg.svd(Ac_r.reshape(dim * d, dim), full_matrices=False)
-
     U_c, S_c, V_dagger_c = linalg.svd(C_r, full_matrices=False)
     A_R = (U_Ac @ V_dagger_Ac) @ np.conj(U_c @ V_dagger_c).T
     A_R = A_R.reshape(dim, d, dim)
+    """
 
     u_l_ac, _ = polar(Ac.reshape(dim * d, dim), side='left')
     u_l_c, _ = polar(C, side='left')
-
     al_tilda = u_l_ac @ np.conj(u_l_c).T
     al_tilda = al_tilda.reshape(dim, d, dim)
-
-    print('left test:', linalg.norm(al_tilda - A_L))
-
+    # print('left test:', linalg.norm(al_tilda - A_L))
     u_r_ac, _ = polar(Ac.reshape(dim, dim * d), side='right')
     u_r_c, _ = polar(C, side='right')
-
     ar_tilda = np.conj(u_r_c).T @ u_r_ac
     ar_tilda = ar_tilda.reshape(dim, d, dim)
     ar_tilda = ar_tilda.transpose([2, 1, 0])
-
-    print('right test:', linalg.norm(ar_tilda - A_R))
-
+    # print('right test:', linalg.norm(ar_tilda - A_R))
     # return A_L, A_R
     return al_tilda, ar_tilda
 
@@ -552,6 +543,7 @@ def vumps_mpo(W, A, eta=1e-10):
     while num_of_iter < 15 or (eta < delta or eta / 10 < abs(energy - energy_mem)):
 
         energy_mem = energy
+        # L_W, R_W, energy = get_Lh_Rh_mpo(A_L, A_R, C, W, tol=delta / 100)
         L_W, R_W, energy = get_Lh_Rh_mpo(A_L, A_R, C, W)
 
         linear_system = LinearOperator((dim ** 2 * d, dim ** 2 * d), matvec=map_Hac)
@@ -565,9 +557,17 @@ def vumps_mpo(W, A, eta=1e-10):
         C = C.reshape(dim, dim)
 
         A_L, A_R = min_Ac_C(Ac, C)
+
         Al_C = ncon([A_L, C],
                     [[-1, -2, 1], [1, -3]])
-        delta = linalg.norm(Ac - Al_C)
+        C_Ar = ncon([C, A_R],
+                    [[-1, 1], [-3, -2, 1]])
+
+        eps_L = linalg.norm(Ac - Al_C)
+        eps_R = linalg.norm(Ac - C_Ar)
+        delta = max(eps_L, eps_R)
+        # print('eps_L: ', eps_L)
+        # print('eps_R: ', eps_R)
 
         if num_of_iter % 5 == 0:
             print(50 * '-' + 'steps', num_of_iter, 50 * '-')
@@ -666,7 +666,7 @@ def quasi_sum_right_left_mpo(T_W, r, l, x):
     dim, d_w = x.shape[:2]
     x_tilda = x - ncon([x, r], [[1, 2, 3], [1, 2, 3]]) * l
     linear_system = LinearOperator((d_w * dim ** 2, d_w * dim ** 2), matvec=trans_map)
-    y, info = bicgstab(linear_system, x_tilda.reshape(-1), x0=x_tilda.reshape(-1), tol=1e-10)
+    y, info = bicgstab(linear_system, x_tilda.reshape(-1), x0=x_tilda.reshape(-1), tol=1e-9)
     # y, info = bicg(linear_system, matvec=trans_map), x_tilda.reshape(-1), x0=x_tilda.reshape(-1))
     y = y.reshape(dim, d_w, dim)
 
@@ -726,7 +726,7 @@ def combine_RBWA_R(R_W, B, W, A_R):
     return RBWA_R
 
 
-def quasiparticle_mpo(W, p, A_L, A_R, L_W, R_W):
+def quasiparticle_mpo(W, p, A_L, A_R, L_W, R_W, num_of_excitations=10):
     """
     :param W: MPO
     :param p: momentum
@@ -776,7 +776,7 @@ def quasiparticle_mpo(W, p, A_L, A_R, L_W, R_W):
 
     linear_system = LinearOperator((dim ** 2 * (d - 1), dim ** 2 * (d - 1)), matvec=map_effective_H)
     # omega, X = eigs(linear_system, k=10, which='SR', tol=1e-6)
-    omega, X = eigsh(linear_system, k=10, which='SA', tol=1e-6)
+    omega, X = eigsh(linear_system, k=num_of_excitations, which='SA', tol=1e-6)
 
     return omega, X
 
@@ -806,7 +806,7 @@ def domain_sum_right_left(T_R2L1, x):
     return y
 
 
-def quasiparticle_domain(W, p, A_L1, A_R2, L_W, R_W):
+def quasiparticle_domain(W, p, A_L1, A_R2, L_W, R_W, num_of_excitations=10):
 
     dim, d = A_L1.shape[:2]
     A_tmp = A_L1.reshape(dim * d, dim).T
@@ -844,7 +844,7 @@ def quasiparticle_domain(W, p, A_L1, A_R2, L_W, R_W):
 
     linear_system = LinearOperator((dim ** 2 * (d - 1), dim ** 2 * (d - 1)), matvec=map_effective_H)
     # omega, X = eigs(linear_system, matvec=map_effective_H), k=10, which='SR', tol=1e-6)
-    omega, _ = eigsh(linear_system, k=10, which='SA', tol=1e-10)
+    omega, _ = eigsh(linear_system, k=num_of_excitations, which='SA', tol=1e-10)
     return omega
 
 
@@ -858,7 +858,7 @@ h_loc = np.real(h_loc).reshape(2, 2, 2, 2)
 """
 
 # TFI model
-hz_field = 1.0
+hz_field = .9
 h_loc = (-np.kron(SX, SX) - (hz_field / 2) * (np.kron(SZ, np.eye(2)) + np.kron(np.eye(2), SZ)))
 h_loc = h_loc.reshape(2, 2, 2, 2)
 
@@ -885,40 +885,49 @@ if __name__ == '__main__':
 
     # TODO: add selection of model
 
-    dim = 8  # virtual bond dimension
+    dim = 16  # virtual bond dimension
     d = 2  # physical dimension
     # seed = 1
     # np.random.seed(seed)
     # eta = 1e-8
 
+    file_name = 'vumps.txt'  # output file
+    with open(file_name, 'w') as f:
+        f.write('# Model: TFI \n')
+        f.write('# D=%d, hz_field=%.8E\n' % (dim, hz_field))
+        f.write('# p\t\t\t\texact\t\t\t\ttrivial\t\t\t\tnon-trivial\n')
+
     A = np.random.rand(dim, d, dim)
 
     ##################################################################################
 
-    energy_2sites = vumps_2sites(h_loc, A, eta=1e-7)[0]
+    # energy_2sites = vumps_2sites(h_loc, A, eta=1e-7)[0]
     energy_mpo, Ac, C, A_L, A_R, L_W, R_W = vumps_mpo(W, A, eta=1e-8)
     print('vumps mpo energy:', energy_mpo)
+
     # print('C')
     # print(C)
-    print('energy_2sites - energy_mpo:', energy_2sites - energy_mpo)
-
-    p = 2.  # momentum
-
-    omega, X = quasiparticle_mpo(W, p, A_L, A_R, L_W, R_W)
-
-    print('omega', omega - energy_mpo)
+    # print('energy_2sites - energy_mpo:', energy_2sites - energy_mpo)
+    # p = 2.  # momentum
+    # omega, X = quasiparticle_mpo(W, p, A_L, A_R, L_W, R_W)
+    # print('omega', omega - energy_mpo)
     # print('X', X)
-    print('elementary excitation (exact): ', tfi_elem_excitation(p))
-
-    ##################################################################################
+    # print('elementary excitation (exact): ', tfi_elem_excitation(p))
+    # omega = quasiparticle_domain(W, p, A_L1, A_R2, L_W, R_W)
+    # print(omega - energy_mpo)
 
     A_L1 = A_L
     A_R2 = ncon([A_R, SZ],
                 [[-1, 1, -3], [1, -2]])
 
-    omega = quasiparticle_domain(W, p, A_L1, A_R2, L_W, R_W)
+    num_of_excitations = 1
 
-    print('domain...')
-    print(omega - energy_mpo)
-
-    ##################################################################################
+    for p in tqdm(np.linspace(0, np.pi, 25)):
+        elem_excit = tfi_elem_excitation(p)
+        omega, _ = quasiparticle_mpo(W, p, A_L, A_R, L_W, R_W, num_of_excitations)
+        omega_domain = quasiparticle_domain(W, p, A_L1, A_R2, L_W, R_W, num_of_excitations)
+        f = open(file_name, 'a')
+        # f.write('%.15f\t\t%.15f\n' % (p, np.real(omega[0] - energy_mpo)))
+        f.write('%.15f\t\t%.15f\t\t%.15f\t\t%.15f\n'
+                % (p, elem_excit, np.real(omega[0] - energy_mpo), np.real(omega_domain[0] - energy_mpo)))
+        f.close()
