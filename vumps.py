@@ -255,7 +255,7 @@ def canonical_to_left_and_right_canonical(lam, gamma):
     return left_canonical, right_canonical
 
 
-def evaluate_energy_two_sites(A_L, A_R, Ac, h):  # TODO: clean this function
+def evaluate_energy_two_sites(A_L, A_R, Ac, h):
 
     e1 = ncon([A_L, Ac, h, np.conj(A_L), np.conj(Ac)],
               [[1, 4, 2], [2, 5, 3], [4, 5, 6, 7], [1, 6, 8], [8, 7, 3]])
@@ -263,12 +263,9 @@ def evaluate_energy_two_sites(A_L, A_R, Ac, h):  # TODO: clean this function
               [[1, 4, 2], [3, 5, 2], [4, 5, 6, 7], [1, 6, 8], [3, 7, 8]])
 
     e = (e1 + e2) / 2
-    # print('abs(e-e1) = ', abs(e-e1))
 
-    if abs(e - e1) > 1e-12:
-        print('e1 is not close to e2!')
-        print('abs(e-e1) = ', abs(e - e1))
-        # exit()
+    if abs((e1 - e2) / e1) > 1e-14:
+        print('e1 is not close to e2; relat. abs. diff.:', abs((e1 - e2) / e1))
 
     return e
 
@@ -316,32 +313,55 @@ def create_Hc_map(A_L, A_R, L_h, R_h, h):
 
 def min_Ac_C(Ac, C):
 
+    # TODO: remove debugging checks
+
     dim, d = Ac.shape[:2]
 
-    """
     U_Ac, S_Ac, V_dagger_Ac = linalg.svd(Ac.reshape(dim * d, dim), full_matrices=False)
     U_c, S_c, V_dagger_c = linalg.svd(C, full_matrices=False)
+
+    err1 = linalg.norm(Ac.reshape(dim * d, dim) - np.dot(U_Ac * S_Ac, V_dagger_Ac)) / linalg.norm(Ac)
+    err2 = linalg.norm(C - np.dot(U_c * S_c, V_dagger_c)) / linalg.norm(C)
+
     A_L = (U_Ac @ V_dagger_Ac) @ np.conj(U_c @ V_dagger_c).T
     A_L = A_L.reshape(dim, d, dim)
     Ac_r = Ac.transpose([2, 1, 0])
     C_r = C.T
+
     U_Ac, S_Ac, V_dagger_Ac = linalg.svd(Ac_r.reshape(dim * d, dim), full_matrices=False)
     U_c, S_c, V_dagger_c = linalg.svd(C_r, full_matrices=False)
+
+    err3 = linalg.norm(Ac_r.reshape(dim * d, dim) - np.dot(U_Ac * S_Ac, V_dagger_Ac)) / linalg.norm(Ac)
+    err4 = linalg.norm(C_r - np.dot(U_c * S_c, V_dagger_c)) / linalg.norm(C)
+
+    print('min_Ac_C max relat. error (svd)', max(err1, err2, err3, err4))
+
     A_R = (U_Ac @ V_dagger_Ac) @ np.conj(U_c @ V_dagger_c).T
     A_R = A_R.reshape(dim, d, dim)
-    """
 
-    u_l_ac, _ = polar(Ac.reshape(dim * d, dim), side='left')
-    u_l_c, _ = polar(C, side='left')
+    u_l_ac, pl_ac = polar(Ac.reshape(dim * d, dim), side='left')
+    u_l_c, pl_c = polar(C, side='left')
+
+    err1 = linalg.norm(Ac.reshape(dim * d, dim) - pl_ac.dot(u_l_ac)) / linalg.norm(Ac)
+    err2 = linalg.norm(C - pl_c.dot(u_l_c)) / linalg.norm(C)
+
     al_tilda = u_l_ac @ np.conj(u_l_c).T
     al_tilda = al_tilda.reshape(dim, d, dim)
-    # print('left test:', linalg.norm(al_tilda - A_L))
-    u_r_ac, _ = polar(Ac.reshape(dim, dim * d), side='right')
-    u_r_c, _ = polar(C, side='right')
+    print('left test:', linalg.norm(al_tilda - A_L))
+
+    u_r_ac, pr_ac = polar(Ac.reshape(dim, dim * d), side='right')
+    u_r_c, pr_c = polar(C, side='right')
+
+    err3 = linalg.norm(Ac.reshape(dim, dim * d) - u_r_ac.dot(pr_ac)) / linalg.norm(Ac)
+    err4 = linalg.norm(C - u_r_c.dot(pr_c)) / linalg.norm(C)
+
+    print('min_Ac_C max relat. error (polar)', max(err1, err2, err3, err4))
+
     ar_tilda = np.conj(u_r_c).T @ u_r_ac
     ar_tilda = ar_tilda.reshape(dim, d, dim)
     ar_tilda = ar_tilda.transpose([2, 1, 0])
-    # print('right test:', linalg.norm(ar_tilda - A_R))
+    print('right test:', linalg.norm(ar_tilda - A_R))
+
     # return A_L, A_R
     return al_tilda, ar_tilda
 
@@ -858,7 +878,7 @@ h_loc = np.real(h_loc).reshape(2, 2, 2, 2)
 """
 
 # TFI model
-hz_field = .9
+hz_field = 1.
 h_loc = (-np.kron(SX, SX) - (hz_field / 2) * (np.kron(SZ, np.eye(2)) + np.kron(np.eye(2), SZ)))
 h_loc = h_loc.reshape(2, 2, 2, 2)
 
@@ -885,7 +905,7 @@ if __name__ == '__main__':
 
     # TODO: add selection of model
 
-    dim = 16  # virtual bond dimension
+    dim = 8  # virtual bond dimension
     d = 2  # physical dimension
     # seed = 1
     # np.random.seed(seed)
@@ -901,7 +921,7 @@ if __name__ == '__main__':
 
     ##################################################################################
 
-    # energy_2sites = vumps_2sites(h_loc, A, eta=1e-7)[0]
+    energy_2sites = vumps_2sites(h_loc, A, eta=1e-7)[0]
     energy_mpo, Ac, C, A_L, A_R, L_W, R_W = vumps_mpo(W, A, eta=1e-8)
     print('vumps mpo energy:', energy_mpo)
 
