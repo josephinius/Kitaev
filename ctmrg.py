@@ -545,6 +545,8 @@ def calculate_correlation_length(t1, t3, n=5):  # or use (t2, t4)
     """Returns list of n largest correlation lengths."""
 
     if t1.shape != t3.shape:
+        print('t1.shape', t1.shape)
+        print('t3.shape', t3.shape)
         raise ValueError
 
     t1 = np.array(t1, dtype=np.complex64)
@@ -556,6 +558,8 @@ def calculate_correlation_length(t1, t3, n=5):  # or use (t2, t4)
 
     d = tm.shape[0]
     tm = tm.reshape((d * d, d * d))
+
+    np.save('transfer_matrix.npy', tm)
 
     w = linalg.eigvals(tm, overwrite_a=True, check_finite=False)
     w_abs = sorted(abs(w), reverse=True)[:(n+1)]
@@ -711,7 +715,7 @@ class CTMRG(object):
 
             try:
                 # correlation_length_mem_0 = correlation_length_0
-                raise ValueError
+                # raise ValueError
                 correlation_length = calculate_correlation_length(self.tms[1], self.tms[3])
                 # correlation_length_0 = correlation_length[0]
                 # correlation_length_02 = calculate_correlation_length(self.tms[0], self.tms[2])
