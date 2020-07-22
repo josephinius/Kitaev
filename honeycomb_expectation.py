@@ -561,6 +561,30 @@ def calculate_global_flux_vertical(tensor_a, tensor_b, lambdas, flip_vertical=Fa
     return torus_partition_function(ten_a, ten_b, ten_c, ten_d, ten_e, ten_f, ten_cp, ten_fp) / norm
 
 
+def weight_to_ctm(w):
+
+    d = w.shape[0]
+    # w = w.reshape((d * d, d * d, d * d, d * d))
+
+    print('w.shape', w.shape)
+
+    c1 = w.reshape((d, d, d * d, d * d, d, d))
+    c1 = np.einsum('i i j k l l->j k', c1)
+    c2 = w.reshape((d, d, d, d, d * d, d * d))
+    c2 = np.einsum('i i j j k l->k l', c2)
+    c3 = w.reshape((d * d, d, d, d, d, d * d))
+    c3 = np.einsum('i j j k k l->l i', c3)
+    c4 = w.reshape((d * d, d * d, d, d, d, d))
+    c4 = np.einsum('i j k k l l->i j', c4)
+
+    t1 = np.einsum('i i j k l->j k l', w.reshape((d, d, d * d, d * d, d * d)))
+    t2 = np.einsum('i j j k l->k l i', w.reshape((d * d, d, d, d * d, d * d)))
+    t3 = np.einsum('i j k k l->l i j', w.reshape((d * d, d * d, d, d, d * d)))
+    t4 = np.einsum('i j k l l->i j k', w.reshape((d * d, d * d, d * d, d, d)))
+
+    return (c1, c2, c3, c4), (t1, t2, t3, t4)
+
+
 def init_ctm_ctmrg(ten_a, ten_b, lam, normalize=False):
     """
     Returns weight, tuple of four corner matrices, and tuple of

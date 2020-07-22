@@ -1,9 +1,8 @@
 import numpy as np
 from ncon import ncon
-import time
-from tqdm import tqdm
-
-import constants
+# import time
+# from tqdm import tqdm
+# import constants
 import honeycomb_expectation
 import ctmrg
 
@@ -24,7 +23,6 @@ import ctmrg
            a
              
 """
-
 
 levi_civita = np.zeros((3, 3, 3))
 levi_civita[0, 1, 2] = levi_civita[1, 2, 0] = levi_civita[2, 0, 1] = 1
@@ -60,31 +58,13 @@ rvb_weight = ncon(
 # Exporting rvb_weight to CTMRG
 
 w = np.transpose(rvb_weight, (0, 1, 6, 7, 4, 5, 2, 3))
-
-d = 3
-
-w = w.reshape((d * d, d * d, d * d, d * d))
-
-c1 = w.reshape((d, d, d * d, d * d, d, d))
-c1 = np.einsum('i i j k l l->j k', c1)
-c2 = w.reshape((d, d, d, d, d * d, d * d))
-c2 = np.einsum('i i j j k l->k l', c2)
-c3 = w.reshape((d * d, d, d, d, d, d * d))
-c3 = np.einsum('i j j k k l->l i', c3)
-c4 = w.reshape((d * d, d * d, d, d, d, d))
-c4 = np.einsum('i j k k l l->i j', c4)
-
-t1 = np.einsum('i i j k l->j k l', w.reshape((d, d, d * d, d * d, d * d)))
-t2 = np.einsum('i j j k l->k l i', w.reshape((d * d, d, d, d * d, d * d)))
-t3 = np.einsum('i j k k l->l i j', w.reshape((d * d, d * d, d, d, d * d)))
-t4 = np.einsum('i j k l l->i j k', w.reshape((d * d, d * d, d * d, d, d)))
-
-corners = (c1, c2, c3, c4)
-tms = (t1, t2, t3, t4)
+corners, tms = honeycomb_expectation.weight_to_ctm(w)
 
 # Running CTMRG
 
-m = 32
+m = 64
+
+w = w.reshape((3 * 3, 3 * 3, 3 * 3, 3 * 3))
 
 ctm = ctmrg.CTMRG(m, w, corners, tms, w, algorithm='Corboz')
 e, delta, correlation_length, num_of_iter = ctm.ctmrg_iteration()
