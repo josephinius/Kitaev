@@ -4,7 +4,6 @@ import ctmrg
 import honeycomb_expectation
 from constants import sy12 as SY
 
-
 a0 = 1
 a2 = np.sqrt(6)
 a1 = np.sqrt(3 / 2)
