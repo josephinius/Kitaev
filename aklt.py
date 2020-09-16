@@ -23,7 +23,6 @@ string = 1j * SY
 
 aklt_state = ncon([aklt_state, string, string],
                   [[-1, -2, -3, 1, 2], [1, -4], [2, -5]])
-
 aklt_state /= np.sqrt(6)
 
 aklt_weight = ncon(

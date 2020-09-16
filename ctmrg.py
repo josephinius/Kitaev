@@ -715,7 +715,7 @@ class CTMRG(object):
 
             try:
                 # correlation_length_mem_0 = correlation_length_0
-                # raise ValueError
+                raise ValueError
                 correlation_length = calculate_correlation_length(self.tms[1], self.tms[3])
                 # correlation_length_0 = correlation_length[0]
                 # correlation_length_02 = calculate_correlation_length(self.tms[0], self.tms[2])
