@@ -156,14 +156,14 @@ def create_energy_impurity(phi, tensor_x, tensor_y, tensor_z, double_x, double_y
     return w_imp
 
 
-dim = 100
+dim = 256
 
 min_energy_theta = []
 
-for p in np.linspace(0.02, 0.48, num=2, endpoint=True):
+for p in np.linspace(0.48, 0.49, num=1, endpoint=True):
     phi = p * math.pi
     minimum = None
-    for t in np.linspace(0.5, 0.9, num=40, endpoint=False):
+    for t in np.linspace(0.25, 0.45, num=50, endpoint=False):
         theta = t * math.pi
         tensor_x, tensor_y, tensor_z = create_star_lattice_tensors(theta)
         double_x, double_y, double_z = create_double_tensors(tensor_x, tensor_y, tensor_z)

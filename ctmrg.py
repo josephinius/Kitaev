@@ -691,8 +691,8 @@ class CTMRG(object):
         i = 0
         # for i in range(num_of_steps):  # Don't forget to comment out the incrementation of i in the body
         # while abs(free_energy - free_energy_mem) > 1.E-10 and i < num_of_steps:
-        while abs(fast_free_energy - fast_free_energy_mem) > 1.E-14 and i < num_of_steps:
-            # while abs(energy - energy_mem) > 1.E-16 and i < num_of_steps:
+        # while abs(fast_free_energy - fast_free_energy_mem) > 1.E-14 and i < num_of_steps:
+        while abs(energy - energy_mem) > 1.E-6 and i < num_of_steps:
             # while abs(correlation_length_0 - correlation_length_mem_0) > 1.E-7 and i < num_of_steps:
 
             self.ctmrg_extend_and_renormalize()
