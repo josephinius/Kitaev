@@ -43,7 +43,7 @@ def create_star_lattice_tensors(theta):
     # tensor_y = np.zeros((d, xi, xi, xi), dtype=complex)
     # tensor_z = np.zeros((d, xi, xi, xi), dtype=complex)
     c = math.cos(theta)
-    s = math.sin(theta) / math.sqrt(2)
+    s = math.sin(theta) * math.sqrt(2) / 2
     _, v = linalg.eigh(-(sx * c + sy * s + sz * s))
     tensor_x = v[:, 0].reshape((d, xi, xi, xi))
     _, v = linalg.eigh(-(sx * s + sy * c + sz * s))
@@ -57,7 +57,6 @@ def create_star_lattice_tensors(theta):
 
 
 def create_double_tensors(tensor_x, tensor_y, tensor_z):
-    xi = 2
     create_double_tensor = lambda x: honeycomb_expectation.create_double_tensor(x, lambdas)
     double_x, double_y, double_z = map(create_double_tensor, (tensor_x, tensor_y, tensor_z))
     return double_x, double_y, double_z
@@ -76,8 +75,8 @@ triangle = ncon(
 # TODO: unify with honeycomb_expectation
 
 # w = np.tensordot(triangle, triangle, axes=(0, 0))
-
 # xi = 2
+
 
 def create_corners(w, xi):
     c1 = w.reshape((xi, xi, xi * xi, xi * xi, xi, xi))
@@ -106,10 +105,13 @@ def create_tms(w, xi):
 
 
 def create_triangle_pair(x1, y1, z1, x2, y2, z2):
+
     def create_triangle(x, y, z):
         return ncon([x, y, z], [[-1, 2, 3], [1, -2, 3], [1, 2, -3]])
+
     triangle1 = create_triangle(x1, y1, z1)
     triangle2 = create_triangle(x2, y2, z2)
+
     return np.tensordot(triangle1, triangle2, axes=(0, 0))
 
 
@@ -143,27 +145,29 @@ def create_energy_impurity(phi, tensor_x, tensor_y, tensor_z, double_x, double_y
     term2 = create_triangle_pair(x1=imps.x.y, y1=double_y, z1=imps.z.y, x2=double_x, y2=double_y, z2=double_z)
     term3 = create_triangle_pair(x1=imps.x.z, y1=imps.y.z, z1=double_z, x2=double_x, y2=double_y, z2=double_z)
 
-    term4 = create_triangle_pair(x1=double_x, y1=double_y, z1=double_z, x2=double_x, y2=imps.y.x, z2=imps.z.x)
-    term5 = create_triangle_pair(x1=double_x, y1=double_y, z1=double_z, x2=imps.x.y, y2=double_y, z2=imps.z.y)
-    term6 = create_triangle_pair(x1=double_x, y1=double_y, z1=double_z, x2=imps.x.z, y2=imps.y.z, z2=double_z)
+    # term4 = create_triangle_pair(x1=double_x, y1=double_y, z1=double_z, x2=double_x, y2=imps.y.x, z2=imps.z.x)
+    # term5 = create_triangle_pair(x1=double_x, y1=double_y, z1=double_z, x2=imps.x.y, y2=double_y, z2=imps.z.y)
+    # term6 = create_triangle_pair(x1=double_x, y1=double_y, z1=double_z, x2=imps.x.z, y2=imps.y.z, z2=double_z)
 
     term7 = create_triangle_pair(x1=imps.x.x, y1=double_y, z1=double_z, x2=imps.x.x, y2=double_y, z2=double_z)
 
-    w_imp = term7 + J * (term1 + term2 + term3 + term4 + term5 + term6)
-    w_imp /= 8
+    # w_imp = term7 + J * (term1 + term2 + term3 + term4 + term5 + term6)
+    w_imp = term7 + J * 2 * (term1 + term2 + term3)
+
+    w_imp /= 4
     w_imp *= -1
 
     return w_imp
 
 
-dim = 256
+dim = 100
 
 min_energy_theta = []
 
 for p in np.linspace(0.48, 0.49, num=1, endpoint=True):
     phi = p * math.pi
     minimum = None
-    for t in np.linspace(0.25, 0.45, num=50, endpoint=False):
+    for t in np.linspace(0.25, 0.45, num=10, endpoint=False):
         theta = t * math.pi
         tensor_x, tensor_y, tensor_z = create_star_lattice_tensors(theta)
         double_x, double_y, double_z = create_double_tensors(tensor_x, tensor_y, tensor_z)
