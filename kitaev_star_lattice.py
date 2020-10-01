@@ -34,7 +34,7 @@ def create_star_lattice_tensors(theta):
     # tensor_z = np.zeros((d, xi, xi, xi), dtype=complex)
 
     c = math.cos(theta)
-    s = math.sin(theta) * math.sqrt(2) / 2
+    s = math.sin(theta) / math.sqrt(2)
 
     _, v = linalg.eigh(-(sx * c + sy * s + sz * s))  # Eq. (2)
     tensor_x = v[:, 0].reshape((d, xi, xi, xi))
@@ -125,14 +125,14 @@ def create_energy_impurity(phi, tensor_x, tensor_y, tensor_z, double_x, double_y
     term2 = create_triangle_pair(x1=imps.x.y, y1=double_y, z1=imps.z.y, x2=double_x, y2=double_y, z2=double_z)
     term3 = create_triangle_pair(x1=imps.x.z, y1=imps.y.z, z1=double_z, x2=double_x, y2=double_y, z2=double_z)
 
-    # term4 = create_triangle_pair(x1=double_x, y1=double_y, z1=double_z, x2=double_x, y2=imps.y.x, z2=imps.z.x)
-    # term5 = create_triangle_pair(x1=double_x, y1=double_y, z1=double_z, x2=imps.x.y, y2=double_y, z2=imps.z.y)
-    # term6 = create_triangle_pair(x1=double_x, y1=double_y, z1=double_z, x2=imps.x.z, y2=imps.y.z, z2=double_z)
+    term4 = create_triangle_pair(x1=double_x, y1=double_y, z1=double_z, x2=double_x, y2=imps.y.x, z2=imps.z.x)
+    term5 = create_triangle_pair(x1=double_x, y1=double_y, z1=double_z, x2=imps.x.y, y2=double_y, z2=imps.z.y)
+    term6 = create_triangle_pair(x1=double_x, y1=double_y, z1=double_z, x2=imps.x.z, y2=imps.y.z, z2=double_z)
 
     term7 = create_triangle_pair(x1=imps.x.x, y1=double_y, z1=double_z, x2=imps.x.x, y2=double_y, z2=double_z)
 
-    # w_imp = term7 + J * (term1 + term2 + term3 + term4 + term5 + term6)
-    w_imp = term7 + J * 2 * (term1 + term2 + term3)
+    w_imp = J * term7 + (term1 + term2 + term3 + term4 + term5 + term6) / 2
+    # w_imp = J * term7 + (term1 + term2 + term3)
 
     w_imp /= 4
     w_imp *= -1
@@ -165,6 +165,7 @@ def create_tms(w, xi):  # TODO: unify with honeycomb_expectation
 if __name__ == "__main__":
 
     print('Kitaev model on star lattice (KMS)')
+    file_name = "star.txt"
 
     spin = '1/2'
 
@@ -175,24 +176,24 @@ if __name__ == "__main__":
                np.array([1., 1.], dtype=complex),
                np.array([1., 1.], dtype=complex)]
 
-    dim = 200  # bond dimension
+    dim = 100  # bond dimension
     min_energy_theta = []
 
-    for p in np.linspace(0.48, 0.49, num=1, endpoint=True):
+    with open(file_name, 'w') as f:
+        f.write('# phi / pi\t\t\tEnergy\t\t\ttheta*\n')
+
+    for p in np.linspace(0.05, 0.45, num=41, endpoint=True):
         phi = p * math.pi
         minimum = None
 
-        for t in np.linspace(0.25, 0.45, num=10, endpoint=False):
+        for t in np.linspace(0.01, 0.51, num=100, endpoint=False):
             theta = t * math.pi
             tensor_x, tensor_y, tensor_z = create_star_lattice_tensors(theta)
             create_double_tensor = lambda x: honeycomb_expectation.create_double_tensor(x, lambdas)
             double_x, double_y, double_z = map(create_double_tensor, (tensor_x, tensor_y, tensor_z))
 
-            triangle = ncon(
-                [double_x, double_y, double_z],
-                [[-1, 2, 3], [1, -2, 3], [1, 2, -3]]
-            )
-            w = np.tensordot(triangle, triangle, axes=(0, 0))
+            w = create_triangle_pair(double_x, double_y, double_z, double_x, double_y, double_z)
+
             xi = 2
             corners = create_corners(w, xi)
             transfer_matrices = create_tms(w, xi)
@@ -206,5 +207,8 @@ if __name__ == "__main__":
                 minimum = (energy, t)
 
         min_energy_theta.append([p, minimum])
+        f = open(file_name, 'a')
+        f.write('%.15f\t\t%.15f\t%.15f\n' % (p, np.real(minimum[0]), minimum[1]))
+        f.close()
 
     print(min_energy_theta)
