@@ -110,8 +110,6 @@ def create_energy_impurity(phi, tensor_x, tensor_y, tensor_z, double_x, double_y
 
     Impurities = namedtuple('Impurities', ['x', 'y', 'z'])
 
-    J = math.tan(phi)
-
     tensors = (tensor_x, tensor_y, tensor_z)
     ops = (sx, sy, sz)
 
@@ -131,9 +129,9 @@ def create_energy_impurity(phi, tensor_x, tensor_y, tensor_z, double_x, double_y
 
     term7 = create_triangle_pair(x1=imps.x.x, y1=double_y, z1=double_z, x2=imps.x.x, y2=double_y, z2=double_z)
 
-    w_imp = J * term7 + (term1 + term2 + term3 + term4 + term5 + term6) / 2
-    # w_imp = J * term7 + (term1 + term2 + term3)
+    w_imp = math.sin(phi) * term7 + math.cos(phi) * (term1 + term2 + term3 + term4 + term5 + term6) / 3
 
+    w_imp *= 3 / 2
     w_imp /= 4
     w_imp *= -1
 
