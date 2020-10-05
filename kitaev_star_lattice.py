@@ -21,29 +21,93 @@ import ctmrg
 from kitaev import apply_gas_operator
 
 
-def create_star_lattice_tensors(theta):
-    """
-    Returns Loop Gas (LG) state for KMS (parametrized by variational parameter theta).
-    See Eq. (2) and (3) in Ref. [1].
-    """
-
+def create_magnetic_state(theta):
     xi = 1  # initial virtual (bond) dimension
 
-    # tensor_x = np.zeros((d, xi, xi, xi), dtype=complex)
-    # tensor_y = np.zeros((d, xi, xi, xi), dtype=complex)
-    # tensor_z = np.zeros((d, xi, xi, xi), dtype=complex)
-
-    c = math.cos(theta)
-    s = math.sin(theta) / math.sqrt(2)
-
+    c, s = math.cos(theta), math.sin(theta) / math.sqrt(2)
     _, v = linalg.eigh(-(sx * c + sy * s + sz * s))  # Eq. (2)
     tensor_x = v[:, 0].reshape((d, xi, xi, xi))
     _, v = linalg.eigh(-(sx * s + sy * c + sz * s))  # Eq. (2)
     tensor_y = v[:, 0].reshape((d, xi, xi, xi))
     _, v = linalg.eigh(-(sx * s + sy * s + sz * c))  # Eq. (2)
     tensor_z = v[:, 0].reshape((d, xi, xi, xi))
+    return tensor_x, tensor_y, tensor_z
+
+
+def create_star_lattice_LG_state(theta):
+    """
+    Returns Loop Gas (LG) state for KMS (parametrized by variational parameter theta).
+    See Eq. (2) and (3) in Ref. [1].
+    """
+
+    # tensor_x = np.zeros((d, xi, xi, xi), dtype=complex)
+    # tensor_y = np.zeros((d, xi, xi, xi), dtype=complex)
+    # tensor_z = np.zeros((d, xi, xi, xi), dtype=complex)
+
+    tensor_x, tensor_y, tensor_z = create_magnetic_state(theta)
 
     # apply loop gas operator on initial state
+    loop_gas = lambda x: apply_gas_operator(x, constants.create_loop_gas_operator(spin))
+    tensor_x, tensor_y, tensor_z = map(loop_gas, (tensor_x, tensor_y, tensor_z))
+
+    return tensor_x, tensor_y, tensor_z
+
+
+def dimer_gas_operator(spin, alpha, beta, intertriangle_direction):
+    """Returns dimer gas operator (or variational ansatz) R for spin=1/2 or spin=1 Kitaev model."""
+
+    zeta = np.zeros((2, 2, 2), dtype=complex)  # tau_tensor_{i j k}
+
+    zeta[0][0][0] = math.cos(beta)
+
+    if intertriangle_direction == 'x':
+        zeta[1][0][0] = math.sin(beta) * math.sqrt(math.sin(alpha))
+        zeta[0][1][0] = zeta[0][0][1] = math.sin(beta) * math.sqrt(math.cos(alpha))
+
+    if intertriangle_direction == 'y':
+        zeta[0][1][0] = math.sin(beta) * math.sqrt(math.sin(alpha))
+        zeta[1][0][0] = zeta[0][0][1] = math.sin(beta) * math.sqrt(math.cos(alpha))
+
+    if intertriangle_direction == 'z':
+        zeta[0][0][1] = math.sin(beta) * math.sqrt(math.sin(alpha))
+        zeta[1][0][0] = zeta[0][1][0] = math.sin(beta) * math.sqrt(math.cos(alpha))
+
+    sx, sy, sz, one = constants.get_spin_operators(spin)
+    d = one.shape[0]
+    R = np.zeros((d, d, 2, 2, 2), dtype=complex)  # R_DG_{s s' i j k}
+
+    p = 1
+
+    for i in range(2):
+        for j in range(2):
+            for k in range(2):
+                temp = np.eye(d)
+                if i == p:
+                    temp = temp @ sx
+                if j == p:
+                    temp = temp @ sy
+                if k == p:
+                    temp = temp @ sz
+                for s in range(d):
+                    for sp in range(d):
+                        R[s][sp][i][j][k] = zeta[i][j][k] * temp[s][sp]
+    return R
+
+
+def create_star_lattice_SG_state(alpha, beta):
+    """
+    Returns String Gas (SG) state for KMS (parametrized by variational parameters alpha and beta).
+    See Section III. B and Appendix B in Ref. [1].
+    """
+
+    tensor, _, _ = create_magnetic_state(theta=math.atan(math.sqrt(2)))
+
+    DG_x, DG_y, DG_z = (dimer_gas_operator(spin, alpha, beta, direction) for direction in ('x', 'y', 'z'))
+
+    # apply string gas operator
+    tensor_x, tensor_y, tensor_z = (apply_gas_operator(tensor, dg) for dg in (DG_x, DG_y, DG_z))
+
+    # apply loop gas operator
     loop_gas = lambda x: apply_gas_operator(x, constants.create_loop_gas_operator(spin))
     tensor_x, tensor_y, tensor_z = map(loop_gas, (tensor_x, tensor_y, tensor_z))
 
@@ -170,10 +234,37 @@ if __name__ == "__main__":
     d = constants.spin_to_physical_dimension(spin)
     sx, sy, sz, _ = constants.get_spin_operators(spin)
 
+    """
     lambdas = [np.array([1., 1.], dtype=complex),
                np.array([1., 1.], dtype=complex),
                np.array([1., 1.], dtype=complex)]
+    """
 
+    lambdas = [np.ones(4, dtype=complex),
+               np.ones(4, dtype=complex),
+               np.ones(4, dtype=complex)]
+
+    tensor_x, tensor_y, tensor_z = create_star_lattice_SG_state(alpha=0.1 * math.pi, beta=0.2 * math.pi)
+
+    print(tensor_x.shape)
+    print(tensor_y.shape)
+    print(tensor_z.shape)
+
+    dim = 100
+    phi = 0.1
+
+    create_double_tensor = lambda x: honeycomb_expectation.create_double_tensor(x, lambdas)
+    double_x, double_y, double_z = map(create_double_tensor, (tensor_x, tensor_y, tensor_z))
+    w = create_triangle_pair(double_x, double_y, double_z, double_x, double_y, double_z)
+    xi = 4
+    corners = create_corners(w, xi)
+    transfer_matrices = create_tms(w, xi)
+    w_imp = create_energy_impurity(phi, tensor_x, tensor_y, tensor_z, double_x, double_y, double_z)
+    ctm = ctmrg.CTMRG(dim, weight=w, corners=corners, tms=transfer_matrices, weight_imp=w_imp)
+    energy, delta, _, num_of_iter = ctm.ctmrg_iteration()
+
+
+    """
     dim = 100  # bond dimension
     min_energy_theta = []
 
@@ -186,7 +277,7 @@ if __name__ == "__main__":
 
         for t in np.linspace(0.01, 0.51, num=100, endpoint=False):
             theta = t * math.pi
-            tensor_x, tensor_y, tensor_z = create_star_lattice_tensors(theta)
+            tensor_x, tensor_y, tensor_z = create_star_lattice_LG_state(theta)
             create_double_tensor = lambda x: honeycomb_expectation.create_double_tensor(x, lambdas)
             double_x, double_y, double_z = map(create_double_tensor, (tensor_x, tensor_y, tensor_z))
 
@@ -210,3 +301,4 @@ if __name__ == "__main__":
         f.close()
 
     print(min_energy_theta)
+    """
