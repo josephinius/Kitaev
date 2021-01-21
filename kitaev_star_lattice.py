@@ -244,15 +244,57 @@ if __name__ == "__main__":
                np.ones(4, dtype=complex),
                np.ones(4, dtype=complex)]
 
-    tensor_x, tensor_y, tensor_z = create_star_lattice_SG_state(alpha=0.1 * math.pi, beta=0.2 * math.pi)
+    # tensor_x, tensor_y, tensor_z = create_star_lattice_SG_state(alpha=0.1 * math.pi, beta=0.2 * math.pi)
+    # print(tensor_x.shape)
+    # print(tensor_y.shape)
+    # print(tensor_z.shape)
 
-    print(tensor_x.shape)
-    print(tensor_y.shape)
-    print(tensor_z.shape)
+    dim = 25
+    p = 0.16;
+    print('phi: ', p)
 
-    dim = 100
-    phi = 0.1
+    phi = p * math.pi
+    alpha = 0.17 * math.pi
+    beta = 0.27 * math.pi
 
+    tensor_x, tensor_y, tensor_z = create_star_lattice_SG_state(alpha=alpha, beta=beta)
+    create_double_tensor = lambda x: honeycomb_expectation.create_double_tensor(x, lambdas)
+    double_x, double_y, double_z = map(create_double_tensor, (tensor_x, tensor_y, tensor_z))
+    w = create_triangle_pair(double_x, double_y, double_z, double_x, double_y, double_z)
+    xi = 4
+    corners = create_corners(w, xi)
+    transfer_matrices = create_tms(w, xi)
+    w_imp = create_energy_impurity(phi, tensor_x, tensor_y, tensor_z, double_x, double_y, double_z)
+    ctm = ctmrg.CTMRG(dim, weight=w, corners=corners, tms=transfer_matrices, weight_imp=w_imp)
+    energy, delta, _, num_of_iter = ctm.ctmrg_iteration(1000)
+
+    """
+    minimum = None
+
+    # SG state optimization
+    for a in np.linspace(0.05, 0.15, num=20, endpoint=False):
+        for b in np.linspace(0.2, 0.3, num=20, endpoint=False):
+            print('alpha: ', a, ', beta: ', b)
+            alpha = a * math.pi
+            beta = b * math.pi
+            # tensor_x, tensor_y, tensor_z = create_star_lattice_LG_state(theta)
+            tensor_x, tensor_y, tensor_z = create_star_lattice_SG_state(alpha=alpha, beta=beta)
+            create_double_tensor = lambda x: honeycomb_expectation.create_double_tensor(x, lambdas)
+            double_x, double_y, double_z = map(create_double_tensor, (tensor_x, tensor_y, tensor_z))
+            w = create_triangle_pair(double_x, double_y, double_z, double_x, double_y, double_z)
+            xi = 4
+            corners = create_corners(w, xi)
+            transfer_matrices = create_tms(w, xi)
+            w_imp = create_energy_impurity(phi, tensor_x, tensor_y, tensor_z, double_x, double_y, double_z)
+            ctm = ctmrg.CTMRG(dim, weight=w, corners=corners, tms=transfer_matrices, weight_imp=w_imp)
+            energy, delta, _, num_of_iter = ctm.ctmrg_iteration()
+            if minimum is None or minimum[0] > np.real(energy):
+                minimum = (np.real(energy), (a, b))
+
+    print(minimum)
+    """
+
+    """
     create_double_tensor = lambda x: honeycomb_expectation.create_double_tensor(x, lambdas)
     double_x, double_y, double_z = map(create_double_tensor, (tensor_x, tensor_y, tensor_z))
     w = create_triangle_pair(double_x, double_y, double_z, double_x, double_y, double_z)
@@ -262,7 +304,7 @@ if __name__ == "__main__":
     w_imp = create_energy_impurity(phi, tensor_x, tensor_y, tensor_z, double_x, double_y, double_z)
     ctm = ctmrg.CTMRG(dim, weight=w, corners=corners, tms=transfer_matrices, weight_imp=w_imp)
     energy, delta, _, num_of_iter = ctm.ctmrg_iteration()
-
+    """
 
     """
     dim = 100  # bond dimension
@@ -271,7 +313,7 @@ if __name__ == "__main__":
     with open(file_name, 'w') as f:
         f.write('# phi / pi\t\t\tEnergy\t\t\ttheta*\n')
 
-    for p in np.linspace(0.05, 0.45, num=41, endpoint=True):
+    for p in np.linspace(0., 0.05, num=5, endpoint=False):
         phi = p * math.pi
         minimum = None
 

@@ -541,7 +541,16 @@ def measurement(weight, corners, transfer_matrices, weight_imp):
     return np.tensordot(half1, half2, axes=([0, 1, 2, 3], [0, 2, 1, 3])) / norm
 
 
-def calculate_correlation_length(t1, t3, n=5):  # or use (t2, t4)
+def create_spectrum_snapshot(iter_id):
+    def outer(function):
+        def inner(*args):
+            function(args)
+            # do sth here...
+            return inner
+    return outer
+
+
+def calculate_correlation_length(i, t1, t3, n=5):  # or use (t2, t4)
     """Returns list of n largest correlation lengths."""
 
     if t1.shape != t3.shape:
@@ -559,7 +568,8 @@ def calculate_correlation_length(t1, t3, n=5):  # or use (t2, t4)
     d = tm.shape[0]
     tm = tm.reshape((d * d, d * d))
 
-    np.save('transfer_matrix.npy', tm)
+    # np.save(f'transfer_matrix_iter_{i+1}.npy', tm)
+    np.save('transfer_matrix_iter.npy', tm)
 
     w = linalg.eigvals(tm, overwrite_a=True, check_finite=False)
     w_abs = sorted(abs(w), reverse=True)[:(n+1)]
@@ -667,7 +677,7 @@ class CTMRG(object):
 
         self.iter_counter += num_of_steps
 
-    def ctmrg_iteration(self, num_of_steps=100):
+    def ctmrg_iteration(self, num_of_steps=25):
         """Performs at most num_of_steps iterations of ctmrg algorithm and prints energy after each iteration.
         Returns the final energy, "precision", and number of iterations."""
 
@@ -689,10 +699,10 @@ class CTMRG(object):
         """
 
         i = 0
-        # for i in range(num_of_steps):  # Don't forget to comment out the incrementation of i in the body
-        # while abs(free_energy - free_energy_mem) > 1.E-10 and i < num_of_steps:
-        # while abs(fast_free_energy - fast_free_energy_mem) > 1.E-14 and i < num_of_steps:
-        while abs(energy - energy_mem) > 1.E-6 and i < num_of_steps:
+        for i in range(num_of_steps):  # Don't forget to comment out the incrementation of i in the body
+            # while abs(free_energy - free_energy_mem) > 1.E-10 and i < num_of_steps:
+            # while abs(fast_free_energy - fast_free_energy_mem) > 1.E-14 and i < num_of_steps:
+            # while abs(energy - energy_mem) > 1.E-10 and i < num_of_steps:
             # while abs(correlation_length_0 - correlation_length_mem_0) > 1.E-7 and i < num_of_steps:
 
             self.ctmrg_extend_and_renormalize()
@@ -715,8 +725,8 @@ class CTMRG(object):
 
             try:
                 # correlation_length_mem_0 = correlation_length_0
-                raise ValueError
-                correlation_length = calculate_correlation_length(self.tms[1], self.tms[3])
+                # raise ValueError
+                correlation_length = calculate_correlation_length(i, self.tms[1], self.tms[3])
                 # correlation_length_0 = correlation_length[0]
                 # correlation_length_02 = calculate_correlation_length(self.tms[0], self.tms[2])
             except ValueError:
@@ -732,5 +742,7 @@ class CTMRG(object):
                   f"\t\t{tab.join(str(cl) for cl in correlation_length)}")
 
             i += 1
+
+        calculate_correlation_length(i, self.tms[1], self.tms[3])
 
         return energy, abs(energy - energy_mem), correlation_length, i
